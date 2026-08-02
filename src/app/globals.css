@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --color-paper: #F3F4F1;
+  --color-paper-raised: #FFFFFF;
+  --color-ink: #1E2A2B;
+  --color-ink-soft: #5B6B69;
+  --color-line: #DAD9D0;
+  --color-common: #2F6F5E;
+  --color-common-soft: #E4EEEA;
+  --color-you: #B9852E;
+  --color-you-soft: #F3E9D6;
+  --color-spouse: #A8485B;
+  --color-spouse-soft: #F3E1E4;
+  --color-danger: #B3402E;
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-paper-raised: var(--color-paper-raised);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-line: var(--color-line);
+  --color-common: var(--color-common);
+  --color-common-soft: var(--color-common-soft);
+  --color-you: var(--color-you);
+  --color-you-soft: var(--color-you-soft);
+  --color-spouse: var(--color-spouse);
+  --color-spouse-soft: var(--color-spouse-soft);
+  --color-danger: var(--color-danger);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Roboto Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ledger-style dotted leader between a label and a right-aligned value */
+.leader {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted var(--color-line);
+  margin: 0 0.5rem;
+  transform: translateY(-0.3em);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .transition-std {
+    transition: all 150ms ease;
+  }
+}

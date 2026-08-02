@@ -1,0 +1,97 @@
+"use client";
+
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import type { Category, Profile } from "@/lib/database.types";
+import { PAYMENT_METHOD_LABELS } from "@/lib/format";
+
+export function FilterBar({
+  categories,
+  currentProfile,
+  spouseProfile,
+}: {
+  categories: Category[];
+  currentProfile: Profile;
+  spouseProfile: Profile | null;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function setParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function clearAll() {
+    router.push(pathname);
+  }
+
+  const type = searchParams.get("type") ?? "";
+  const owner = searchParams.get("owner") ?? "";
+  const category = searchParams.get("category") ?? "";
+  const payment = searchParams.get("payment") ?? "";
+  const hasFilters = type || owner || category || payment;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-line bg-paper-raised px-4 py-3 md:px-6">
+      <select
+        value={type}
+        onChange={(e) => setParam("type", e.target.value)}
+        className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
+      >
+        <option value="">All types</option>
+        <option value="common">Common</option>
+        <option value="personal">Personal</option>
+      </select>
+
+      {type === "personal" && (
+        <select
+          value={owner}
+          onChange={(e) => setParam("owner", e.target.value)}
+          className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
+        >
+          <option value="">Either of you</option>
+          <option value={currentProfile.id}>You</option>
+          {spouseProfile && <option value={spouseProfile.id}>Spouse</option>}
+        </select>
+      )}
+
+      <select
+        value={category}
+        onChange={(e) => setParam("category", e.target.value)}
+        className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
+      >
+        <option value="">All categories</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={payment}
+        onChange={(e) => setParam("payment", e.target.value)}
+        className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
+      >
+        <option value="">All payment methods</option>
+        {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+
+      {hasFilters && (
+        <button
+          onClick={clearAll}
+          className="ml-auto text-xs text-ink-soft underline underline-offset-2 hover:text-ink"
+        >
+          Clear filters
+        </button>
+      )}
+    </div>
+  );
+}
