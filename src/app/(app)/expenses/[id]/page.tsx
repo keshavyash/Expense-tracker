@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ensureHouseholdMember, getCategories, getCurrentProfile, getHouseholdMembers, getVendors } from "@/lib/data";
+import { ensureHouseholdMember, getCategories, getCurrentProfile, getGroups, getHouseholdMembers, getVendors } from "@/lib/data";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import type { Expense } from "@/lib/database.types";
 
@@ -22,9 +22,10 @@ export default async function EditExpensePage({
 
   if (!expense) notFound();
 
-  const [categories, vendors, members, currentMember] = await Promise.all([
+  const [categories, vendors, groups, members, currentMember] = await Promise.all([
     getCategories(),
     getVendors(),
+    getGroups(),
     getHouseholdMembers(),
     ensureHouseholdMember(),
   ]);
@@ -36,6 +37,7 @@ export default async function EditExpensePage({
       <ExpenseForm
         categories={categories}
         vendors={vendors}
+        groups={groups}
         members={members}
         currentMemberId={currentMember?.id ?? ""}
         existing={expense as Expense}

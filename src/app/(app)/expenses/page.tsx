@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { ensureHouseholdMember, getCategories, getCurrentProfile, getExpenses, getHouseholdMembers } from "@/lib/data";
+import { ensureHouseholdMember, getCategories, getCurrentProfile, getExpenses, getGroups, getHouseholdMembers } from "@/lib/data";
 import { ExpenseRow } from "@/components/ExpenseRow";
 import { FilterBar } from "@/components/FilterBar";
 import { formatMoney } from "@/lib/format";
@@ -14,15 +14,17 @@ export default async function ExpensesPage({
   if (!profile) redirect("/login");
 
   const sp = await searchParams;
-  const [categories, members, currentMember, expenses] = await Promise.all([
+  const [categories, members, groups, currentMember, expenses] = await Promise.all([
     getCategories(),
     getHouseholdMembers(),
+    getGroups(),
     ensureHouseholdMember(),
     getExpenses({
       expenseType: sp.type as "personal" | "common" | undefined,
       ownerId: sp.owner,
       categoryId: sp.category,
       paymentMethod: sp.payment,
+      groupId: sp.group,
     }),
   ]);
 
@@ -43,6 +45,7 @@ export default async function ExpensesPage({
             categories={categories}
             members={members}
             currentMemberId={currentMember?.id ?? ""}
+            groups={groups}
           />
         </Suspense>
         {expenses.length === 0 ? (

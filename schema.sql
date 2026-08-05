@@ -104,7 +104,34 @@ create policy "authenticated users can delete vendors"
   on public.vendors for delete
   using (auth.role() = 'authenticated');
 
--- 5. EXPENSES
+-- 5. GROUPS — bucket several expenses together (e.g. a 5-day trip),
+-- viewable with a running total, addable by either of you.
+create table public.groups (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+
+alter table public.groups enable row level security;
+
+create policy "groups readable by authenticated users"
+  on public.groups for select
+  using (auth.role() = 'authenticated');
+
+create policy "authenticated users can add groups"
+  on public.groups for insert
+  with check (auth.role() = 'authenticated');
+
+create policy "authenticated users can rename groups"
+  on public.groups for update
+  using (auth.role() = 'authenticated');
+
+create policy "authenticated users can delete groups"
+  on public.groups for delete
+  using (auth.role() = 'authenticated');
+
+-- 6. EXPENSES
 create type expense_type as enum ('personal', 'common');
 create type payment_method as enum ('card', 'cash', 'upi', 'bank_transfer');
 
@@ -118,6 +145,7 @@ create table public.expenses (
   -- login). Must be null for 'common' and set for 'personal'.
   owner_id uuid references public.household_members(id),
   vendor_id uuid references public.vendors(id),
+  group_id uuid references public.groups(id),
   payment_method payment_method not null,
   -- funded_by: whose account/card actually paid — a household_member,
   -- independent of expense_type. NULL means the shared/common account
@@ -138,6 +166,7 @@ create index expenses_type_idx on public.expenses (expense_type);
 create index expenses_category_idx on public.expenses (category_id);
 create index expenses_vendor_idx on public.expenses (vendor_id);
 create index expenses_funded_by_idx on public.expenses (funded_by);
+create index expenses_group_idx on public.expenses (group_id);
 
 create function public.set_updated_at()
 returns trigger language plpgsql as $$

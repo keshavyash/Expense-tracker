@@ -39,6 +39,11 @@ export function ExpenseRow({
           <span className={`rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${t.cls}`}>
             {t.label}
           </span>
+          {expense.group && (
+            <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
+              {expense.group.name}
+            </span>
+          )}
         </div>
         {(expense.vendor || expense.description) && (
           <p className="mt-0.5 truncate text-xs text-ink-soft">

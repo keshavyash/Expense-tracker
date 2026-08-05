@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Tags, BarChart3, Plus, LogOut } from "lucide-react";
+import { LayoutDashboard, Receipt, Tags, BarChart3, Plus, LogOut, Folder } from "lucide-react";
 import { signOut } from "@/lib/actions";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/expenses", label: "Expenses", icon: Receipt },
+  { href: "/groups", label: "Groups", icon: Folder },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/categories", label: "Categories", icon: Tags },
 ];

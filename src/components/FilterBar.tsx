@@ -1,17 +1,19 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import type { Category, HouseholdMember } from "@/lib/database.types";
+import type { Category, Group, HouseholdMember } from "@/lib/database.types";
 import { PAYMENT_METHOD_LABELS } from "@/lib/format";
 
 export function FilterBar({
   categories,
   members,
   currentMemberId,
+  groups,
 }: {
   categories: Category[];
   members: HouseholdMember[];
   currentMemberId: string;
+  groups: Group[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,7 +34,8 @@ export function FilterBar({
   const owner = searchParams.get("owner") ?? "";
   const category = searchParams.get("category") ?? "";
   const payment = searchParams.get("payment") ?? "";
-  const hasFilters = type || owner || category || payment;
+  const group = searchParams.get("group") ?? "";
+  const hasFilters = type || owner || category || payment || group;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-line bg-paper-raised px-4 py-3 md:px-6">
@@ -86,6 +89,21 @@ export function FilterBar({
           </option>
         ))}
       </select>
+
+      {groups.length > 0 && (
+        <select
+          value={group}
+          onChange={(e) => setParam("group", e.target.value)}
+          className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
+        >
+          <option value="">All groups</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       {hasFilters && (
         <button

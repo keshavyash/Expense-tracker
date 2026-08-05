@@ -16,6 +16,7 @@ export interface ExpenseInput {
   funded_by: string | null;
   // free-typed vendor name; resolved to a vendor_id (creating one if needed)
   vendor_name: string | null;
+  group_id: string | null;
   description: string | null;
 }
 
@@ -75,6 +76,7 @@ export async function addExpense(input: ExpenseInput) {
     payment_method: input.payment_method,
     funded_by: input.funded_by,
     vendor_id,
+    group_id: input.group_id,
     description: input.description,
     added_by: user.id,
   });
@@ -106,6 +108,7 @@ export async function updateExpense(id: string, input: ExpenseInput) {
       payment_method: input.payment_method,
       funded_by: input.funded_by,
       vendor_id,
+      group_id: input.group_id,
       description: input.description,
     })
     .eq("id", id);
@@ -161,6 +164,45 @@ export async function deleteCategory(id: string) {
   const { error } = await supabase.from("categories").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/categories");
+}
+
+export async function addGroup(name: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in");
+
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Group name can't be empty");
+
+  const { data, error } = await supabase
+    .from("groups")
+    .insert({ name: trimmed, created_by: user.id })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/groups");
+  return (data as { id: string }).id;
+}
+
+export async function renameGroup(id: string, name: string) {
+  const supabase = await createClient();
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Group name can't be empty");
+
+  const { error } = await supabase.from("groups").update({ name: trimmed }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/groups");
+  revalidatePath("/expenses");
+}
+
+export async function deleteGroup(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("groups").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/groups");
 }
 
 export async function addHouseholdMember(name: string) {

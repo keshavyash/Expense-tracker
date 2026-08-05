@@ -2,9 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type {
   Category,
   Expense,
+  Group,
   HouseholdMember,
   PaymentMethod,
   Vendor,
@@ -30,17 +32,21 @@ function memberLabel(m: HouseholdMember, currentMemberId: string) {
 export function ExpenseForm({
   categories,
   vendors,
+  groups,
   members,
   currentMemberId,
   existing,
   existingVendorName,
+  defaultGroupId,
 }: {
   categories: Category[];
   vendors: Vendor[];
+  groups: Group[];
   members: HouseholdMember[];
   currentMemberId: string;
   existing?: Expense;
   existingVendorName?: string | null;
+  defaultGroupId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -52,7 +58,7 @@ export function ExpenseForm({
   const [date, setDate] = useState(existing?.expense_date ?? todayISO());
   const [categoryId, setCategoryId] = useState(existing?.category_id ?? categories[0]?.id ?? "");
   const [expenseType, setExpenseType] = useState<"personal" | "common">(
-    existing?.expense_type ?? "personal"
+    existing?.expense_type ?? (defaultGroupId ? "common" : "personal")
   );
   const [ownerId, setOwnerId] = useState<string>(existing?.owner_id ?? currentMemberId);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
@@ -62,6 +68,7 @@ export function ExpenseForm({
     existing ? existing.funded_by : currentMemberId
   );
   const [vendorName, setVendorName] = useState(existingVendorName ?? "");
+  const [groupId, setGroupId] = useState<string>(existing?.group_id ?? defaultGroupId ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
 
   function buildInput(): ExpenseInput | null {
@@ -83,6 +90,7 @@ export function ExpenseForm({
       payment_method: paymentMethod,
       funded_by: fundedBy,
       vendor_name: vendorName.trim() || null,
+      group_id: groupId || null,
       description: description.trim() || null,
     };
   }
@@ -221,9 +229,40 @@ export function ExpenseForm({
         </select>
         <span className="mt-1 block text-xs text-ink-soft">
           Need a new one?{" "}
-          <a href="/categories" className="text-common hover:underline">
+          <Link href="/categories" className="text-common hover:underline">
             Add a category
-          </a>
+          </Link>
+        </span>
+      </label>
+
+      {/* Group */}
+      <label className="block text-sm">
+        <span className="mb-1 block text-ink-soft">Group (optional)</span>
+        <select
+          value={groupId}
+          onChange={(e) => {
+            const newGroupId = e.target.value;
+            setGroupId(newGroupId);
+            // Selecting a group defaults the expense to Common — trip/event
+            // spends are usually shared. Still editable below afterward.
+            if (newGroupId && !groupId) {
+              setExpenseType("common");
+            }
+          }}
+          className="w-full rounded-sm border border-line bg-paper-raised px-3 py-2 outline-none focus:border-ink"
+        >
+          <option value="">No group</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block text-xs text-ink-soft">
+          For tracking a trip or event across several expenses.{" "}
+          <Link href="/groups" className="text-common hover:underline">
+            Manage groups
+          </Link>
         </span>
       </label>
 

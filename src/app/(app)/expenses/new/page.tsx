@@ -1,14 +1,21 @@
-import { ensureHouseholdMember, getCategories, getCurrentProfile, getHouseholdMembers, getVendors } from "@/lib/data";
+import { ensureHouseholdMember, getCategories, getCurrentProfile, getGroups, getHouseholdMembers, getVendors } from "@/lib/data";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { redirect } from "next/navigation";
 
-export default async function NewExpensePage() {
+export default async function NewExpensePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ group?: string }>;
+}) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
-  const [categories, vendors, members, currentMember] = await Promise.all([
+  const sp = await searchParams;
+
+  const [categories, vendors, groups, members, currentMember] = await Promise.all([
     getCategories(),
     getVendors(),
+    getGroups(),
     getHouseholdMembers(),
     ensureHouseholdMember(),
   ]);
@@ -19,8 +26,10 @@ export default async function NewExpensePage() {
       <ExpenseForm
         categories={categories}
         vendors={vendors}
+        groups={groups}
         members={members}
         currentMemberId={currentMember?.id ?? ""}
+        defaultGroupId={sp.group}
       />
     </div>
   );

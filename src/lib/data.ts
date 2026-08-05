@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   Category,
   ExpenseWithRelations,
+  Group,
   HouseholdMember,
   Profile,
   Vendor,
@@ -103,6 +104,35 @@ export const getVendors = cache(async (): Promise<Vendor[]> => {
   return (data as Vendor[]) ?? [];
 });
 
+export const getGroups = cache(async (): Promise<Group[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("groups")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data as Group[]) ?? [];
+});
+
+// Running total + expense count per group, for the groups list page.
+export async function getGroupTotals(): Promise<
+  Record<string, { total: number; count: number }>
+> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("expenses")
+    .select("group_id, amount")
+    .not("group_id", "is", null);
+
+  const totals: Record<string, { total: number; count: number }> = {};
+  for (const row of (data as { group_id: string; amount: number }[]) ?? []) {
+    const bucket = totals[row.group_id] ?? { total: 0, count: 0 };
+    bucket.total += Number(row.amount);
+    bucket.count += 1;
+    totals[row.group_id] = bucket;
+  }
+  return totals;
+}
+
 export interface ExpenseFilters {
   from?: string;
   to?: string;
@@ -110,6 +140,7 @@ export interface ExpenseFilters {
   ownerId?: string;
   categoryId?: string;
   paymentMethod?: string;
+  groupId?: string;
   limit?: number;
 }
 
@@ -120,7 +151,7 @@ export async function getExpenses(
   let query = supabase
     .from("expenses")
     .select(
-      "*, category:categories(*), owner:household_members!expenses_owner_id_fkey(*), funded_by_member:household_members!expenses_funded_by_fkey(*), added_by_profile:profiles!expenses_added_by_fkey(*), vendor:vendors(*)"
+      "*, category:categories(*), owner:household_members!expenses_owner_id_fkey(*), funded_by_member:household_members!expenses_funded_by_fkey(*), added_by_profile:profiles!expenses_added_by_fkey(*), vendor:vendors(*), group:groups(*)"
     )
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false });
@@ -131,6 +162,7 @@ export async function getExpenses(
   if (filters.ownerId) query = query.eq("owner_id", filters.ownerId);
   if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
   if (filters.paymentMethod) query = query.eq("payment_method", filters.paymentMethod);
+  if (filters.groupId) query = query.eq("group_id", filters.groupId);
   if (filters.limit) query = query.limit(filters.limit);
 
   const { data, error } = await query;

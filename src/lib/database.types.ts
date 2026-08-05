@@ -33,6 +33,13 @@ export interface Vendor {
   created_at: string;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface Expense {
   id: string;
   amount: number;
@@ -43,6 +50,7 @@ export interface Expense {
   payment_method: PaymentMethod;
   funded_by: string | null; // household_members.id, null = common account
   vendor_id: string | null;
+  group_id: string | null;
   description: string | null;
   added_by: string; // profiles.id — who was logged in when this was saved
   created_at: string;
@@ -55,6 +63,7 @@ export interface ExpenseWithRelations extends Expense {
   funded_by_member: HouseholdMember | null;
   added_by_profile: Profile | null;
   vendor: Vendor | null;
+  group: Group | null;
 }
 
 // Minimal Database type so @supabase/ssr's generics are satisfied.
