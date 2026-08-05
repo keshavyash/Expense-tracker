@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getAllProfiles, getCategories, getCurrentProfile, getExpenses } from "@/lib/data";
+import { ensureHouseholdMember, getCategories, getCurrentProfile, getExpenses, getHouseholdMembers } from "@/lib/data";
 import { ExpenseRow } from "@/components/ExpenseRow";
 import { FilterBar } from "@/components/FilterBar";
 import { formatMoney } from "@/lib/format";
@@ -14,14 +14,15 @@ export default async function ExpensesPage({
   if (!profile) redirect("/login");
 
   const sp = await searchParams;
-  const [categories, profiles] = await Promise.all([getCategories(), getAllProfiles()]);
-  const spouse = profiles.find((p) => p.id !== profile.id) ?? null;
-
-  const ownerFilter = sp.owner === "spouse" ? spouse?.id : sp.owner;
+  const [categories, members, currentMember] = await Promise.all([
+    getCategories(),
+    getHouseholdMembers(),
+    ensureHouseholdMember(),
+  ]);
 
   const expenses = await getExpenses({
     expenseType: sp.type as "personal" | "common" | undefined,
-    ownerId: ownerFilter,
+    ownerId: sp.owner,
     categoryId: sp.category,
     paymentMethod: sp.payment,
   });
@@ -39,7 +40,11 @@ export default async function ExpensesPage({
 
       <div className="rounded-md border border-line bg-paper-raised md:mb-10">
         <Suspense>
-          <FilterBar categories={categories} currentProfile={profile} spouseProfile={spouse} />
+          <FilterBar
+            categories={categories}
+            members={members}
+            currentMemberId={currentMember?.id ?? ""}
+          />
         </Suspense>
         {expenses.length === 0 ? (
           <p className="px-6 py-10 text-center text-sm text-ink-soft">
@@ -47,7 +52,7 @@ export default async function ExpensesPage({
           </p>
         ) : (
           expenses.map((e) => (
-            <ExpenseRow key={e.id} expense={e} currentUserId={profile.id} />
+            <ExpenseRow key={e.id} expense={e} currentMemberId={currentMember?.id ?? ""} />
           ))
         )}
       </div>

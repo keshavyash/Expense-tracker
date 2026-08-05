@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Category, Expense, PaymentMethod, Profile } from "@/lib/database.types";
+import type {
+  Category,
+  Expense,
+  HouseholdMember,
+  PaymentMethod,
+  Vendor,
+} from "@/lib/database.types";
 import { addExpense, deleteExpense, updateExpense, type ExpenseInput } from "@/lib/actions";
+import { VendorCombobox } from "@/components/VendorCombobox";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "card", label: "Card" },
@@ -16,20 +23,30 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function memberLabel(m: HouseholdMember, currentMemberId: string) {
+  return m.id === currentMemberId ? "You" : m.name;
+}
+
 export function ExpenseForm({
   categories,
-  currentProfile,
-  spouseProfile,
+  vendors,
+  members,
+  currentMemberId,
   existing,
+  existingVendorName,
 }: {
   categories: Category[];
-  currentProfile: Profile;
-  spouseProfile: Profile | null;
+  vendors: Vendor[];
+  members: HouseholdMember[];
+  currentMemberId: string;
   existing?: Expense;
+  existingVendorName?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
+  const amountRef = useRef<HTMLInputElement>(null);
 
   const [amount, setAmount] = useState(existing ? String(existing.amount) : "");
   const [date, setDate] = useState(existing?.expense_date ?? todayISO());
@@ -37,45 +54,69 @@ export function ExpenseForm({
   const [expenseType, setExpenseType] = useState<"personal" | "common">(
     existing?.expense_type ?? "personal"
   );
-  const [ownerId, setOwnerId] = useState<string>(existing?.owner_id ?? currentProfile.id);
+  const [ownerId, setOwnerId] = useState<string>(existing?.owner_id ?? currentMemberId);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     existing?.payment_method ?? "upi"
   );
+  const [fundedBy, setFundedBy] = useState<string | null>(
+    existing ? existing.funded_by : currentMemberId
+  );
+  const [vendorName, setVendorName] = useState(existingVendorName ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
+  function buildInput(): ExpenseInput | null {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
       setError("Enter an amount greater than 0.");
-      return;
+      return null;
     }
     if (!categoryId) {
       setError("Choose a category.");
-      return;
+      return null;
     }
-
-    const input: ExpenseInput = {
+    return {
       amount: parsedAmount,
       expense_date: date,
       category_id: categoryId,
       expense_type: expenseType,
       owner_id: expenseType === "personal" ? ownerId : null,
       payment_method: paymentMethod,
+      funded_by: fundedBy,
+      vendor_name: vendorName.trim() || null,
       description: description.trim() || null,
     };
+  }
+
+  function handleSubmit(e: React.FormEvent, andAddAnother = false) {
+    e.preventDefault();
+    setError(null);
+    setSavedNotice(false);
+
+    const input = buildInput();
+    if (!input) return;
 
     startTransition(async () => {
       try {
         if (existing) {
           await updateExpense(existing.id, input);
-        } else {
-          await addExpense(input);
+          router.push("/expenses");
+          router.refresh();
+          return;
         }
-        router.push("/expenses");
-        router.refresh();
+
+        await addExpense(input);
+
+        if (andAddAnother) {
+          setAmount("");
+          setVendorName("");
+          setDescription("");
+          setSavedNotice(true);
+          amountRef.current?.focus();
+          router.refresh();
+        } else {
+          router.push("/expenses");
+          router.refresh();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       }
@@ -103,6 +144,7 @@ export function ExpenseForm({
         <label className="block text-sm">
           <span className="mb-1 block text-ink-soft">Amount (₹)</span>
           <input
+            ref={amountRef}
             type="number"
             inputMode="decimal"
             step="0.01"
@@ -129,11 +171,11 @@ export function ExpenseForm({
       {/* Type selector */}
       <div>
         <span className="mb-1.5 block text-sm text-ink-soft">Type</span>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setExpenseType("common")}
-            className={`rounded-sm border px-3 py-2 text-sm transition-std ${
+            className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
               expenseType === "common"
                 ? "border-common bg-common-soft text-common"
                 : "border-line text-ink-soft"
@@ -141,36 +183,25 @@ export function ExpenseForm({
           >
             Common
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setExpenseType("personal");
-              setOwnerId(currentProfile.id);
-            }}
-            className={`rounded-sm border px-3 py-2 text-sm transition-std ${
-              expenseType === "personal" && ownerId === currentProfile.id
-                ? "border-you bg-you-soft text-you"
-                : "border-line text-ink-soft"
-            }`}
-          >
-            Personal (You)
-          </button>
-          <button
-            type="button"
-            disabled={!spouseProfile}
-            onClick={() => {
-              if (!spouseProfile) return;
-              setExpenseType("personal");
-              setOwnerId(spouseProfile.id);
-            }}
-            className={`rounded-sm border px-3 py-2 text-sm transition-std disabled:opacity-40 ${
-              expenseType === "personal" && spouseProfile && ownerId === spouseProfile.id
-                ? "border-spouse bg-spouse-soft text-spouse"
-                : "border-line text-ink-soft"
-            }`}
-          >
-            Personal (Spouse)
-          </button>
+          {members.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => {
+                setExpenseType("personal");
+                setOwnerId(m.id);
+              }}
+              className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
+                expenseType === "personal" && ownerId === m.id
+                  ? m.id === currentMemberId
+                    ? "border-you bg-you-soft text-you"
+                    : "border-spouse bg-spouse-soft text-spouse"
+                  : "border-line text-ink-soft"
+              }`}
+            >
+              Personal ({memberLabel(m, currentMemberId)})
+            </button>
+          ))}
         </div>
       </div>
 
@@ -196,6 +227,12 @@ export function ExpenseForm({
         </span>
       </label>
 
+      {/* Vendor */}
+      <label className="block text-sm">
+        <span className="mb-1 block text-ink-soft">Vendor (optional)</span>
+        <VendorCombobox vendors={vendors} value={vendorName} onChange={setVendorName} />
+      </label>
+
       {/* Payment method */}
       <div>
         <span className="mb-1.5 block text-sm text-ink-soft">Payment method</span>
@@ -217,6 +254,43 @@ export function ExpenseForm({
         </div>
       </div>
 
+      {/* Funded by (whose account paid) */}
+      <div>
+        <span className="mb-1.5 block text-sm text-ink-soft">Paid from</span>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFundedBy(null)}
+            className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
+              fundedBy === null
+                ? "border-common bg-common-soft text-common"
+                : "border-line text-ink-soft"
+            }`}
+          >
+            Common account
+          </button>
+          {members.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setFundedBy(m.id)}
+              className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
+                fundedBy === m.id
+                  ? m.id === currentMemberId
+                    ? "border-you bg-you-soft text-you"
+                    : "border-spouse bg-spouse-soft text-spouse"
+                  : "border-line text-ink-soft"
+              }`}
+            >
+              {memberLabel(m, currentMemberId)}&apos;s account
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-ink-soft">
+          Which card/UPI/account actually paid — separate from who the spend counts against above.
+        </p>
+      </div>
+
       {/* Description */}
       <label className="block text-sm">
         <span className="mb-1 block text-ink-soft">Note (optional)</span>
@@ -225,22 +299,37 @@ export function ExpenseForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="w-full rounded-sm border border-line bg-paper-raised px-3 py-2 outline-none focus:border-ink"
-          placeholder="e.g. Weekly groceries at BigBasket"
+          placeholder="e.g. Weekly groceries"
         />
       </label>
 
       {error && (
         <p className="rounded-sm bg-spouse-soft px-3 py-2 text-sm text-danger">{error}</p>
       )}
+      {savedNotice && !error && (
+        <p className="rounded-sm bg-common-soft px-3 py-2 text-sm text-common">
+          Saved. Add another below, or head to the list when you&apos;re done.
+        </p>
+      )}
 
-      <div className="flex items-center gap-3 pt-1">
+      <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center">
         <button
           type="submit"
           disabled={pending}
           className="flex-1 rounded-sm bg-common py-2.5 text-sm font-medium text-white transition-std hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Saving…" : existing ? "Save changes" : "Add expense"}
+          {pending ? "Saving…" : existing ? "Save changes" : "Save expense"}
         </button>
+        {!existing && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={(e) => handleSubmit(e, true)}
+            className="flex-1 rounded-sm border border-common py-2.5 text-sm font-medium text-common transition-std hover:bg-common-soft disabled:opacity-50"
+          >
+            Save &amp; add another
+          </button>
+        )}
         {existing && (
           <button
             type="button"

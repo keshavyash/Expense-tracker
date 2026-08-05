@@ -1,4 +1,4 @@
-import { getCurrentProfile, getExpenses } from "@/lib/data";
+import { ensureHouseholdMember, getExpenses } from "@/lib/data";
 import { CategoryBarChart, SplitPieChart, MonthlyTrendChart } from "@/components/Charts";
 import { redirect } from "next/navigation";
 
@@ -16,8 +16,8 @@ function lastNMonths(n: number) {
 }
 
 export default async function ReportsPage() {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const currentMember = await ensureHouseholdMember();
+  if (!currentMember) redirect("/login");
 
   const months = lastNMonths(6);
   const rangeExpenses = await getExpenses({ from: months[0].from, to: months[months.length - 1].to });
@@ -32,13 +32,14 @@ export default async function ReportsPage() {
   );
 
   const common = rangeExpenses.filter((e) => e.expense_type === "common");
-  const you = rangeExpenses.filter((e) => e.expense_type === "personal" && e.owner_id === profile.id);
-  const spouse = rangeExpenses.filter((e) => e.expense_type === "personal" && e.owner_id !== profile.id);
+  const you = rangeExpenses.filter((e) => e.expense_type === "personal" && e.owner_id === currentMember.id);
+  const other = rangeExpenses.filter((e) => e.expense_type === "personal" && e.owner_id !== currentMember.id);
+  const otherName = other[0]?.owner?.name ?? "Spouse";
   const sum = (l: typeof rangeExpenses) => l.reduce((a, e) => a + Number(e.amount), 0);
   const splitData = [
     { name: "Common", value: sum(common) },
     { name: "Personal (You)", value: sum(you) },
-    { name: "Personal (Spouse)", value: sum(spouse) },
+    { name: `Personal (${otherName})`, value: sum(other) },
   ];
 
   const trendData = months.map((m) => ({

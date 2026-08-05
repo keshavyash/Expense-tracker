@@ -1,17 +1,17 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import type { Category, Profile } from "@/lib/database.types";
+import type { Category, HouseholdMember } from "@/lib/database.types";
 import { PAYMENT_METHOD_LABELS } from "@/lib/format";
 
 export function FilterBar({
   categories,
-  currentProfile,
-  spouseProfile,
+  members,
+  currentMemberId,
 }: {
   categories: Category[];
-  currentProfile: Profile;
-  spouseProfile: Profile | null;
+  members: HouseholdMember[];
+  currentMemberId: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -52,9 +52,12 @@ export function FilterBar({
           onChange={(e) => setParam("owner", e.target.value)}
           className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
         >
-          <option value="">Either of you</option>
-          <option value={currentProfile.id}>You</option>
-          {spouseProfile && <option value={spouseProfile.id}>Spouse</option>}
+          <option value="">Anyone</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.id === currentMemberId ? "You" : m.name}
+            </option>
+          ))}
         </select>
       )}
 

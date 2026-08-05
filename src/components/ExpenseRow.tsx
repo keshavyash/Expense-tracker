@@ -2,20 +2,29 @@ import type { ExpenseWithRelations } from "@/lib/database.types";
 import { formatMoney, formatDate, PAYMENT_METHOD_LABELS } from "@/lib/format";
 import Link from "next/link";
 
-function typeLabel(e: ExpenseWithRelations, currentUserId: string) {
+function typeLabel(e: ExpenseWithRelations, currentMemberId: string) {
   if (e.expense_type === "common") return { label: "Common", cls: "bg-common-soft text-common" };
-  if (e.owner_id === currentUserId) return { label: "Personal (You)", cls: "bg-you-soft text-you" };
-  return { label: "Personal (Spouse)", cls: "bg-spouse-soft text-spouse" };
+  if (e.owner_id === currentMemberId) return { label: "Personal (You)", cls: "bg-you-soft text-you" };
+  return {
+    label: `Personal (${e.owner?.name ?? "?"})`,
+    cls: "bg-spouse-soft text-spouse",
+  };
+}
+
+function fundedByLabel(e: ExpenseWithRelations, currentMemberId: string) {
+  if (!e.funded_by) return "Common account";
+  if (e.funded_by === currentMemberId) return "Your account";
+  return `${e.funded_by_member?.name ?? "?"}'s account`;
 }
 
 export function ExpenseRow({
   expense,
-  currentUserId,
+  currentMemberId,
 }: {
   expense: ExpenseWithRelations;
-  currentUserId: string;
+  currentMemberId: string;
 }) {
-  const t = typeLabel(expense, currentUserId);
+  const t = typeLabel(expense, currentMemberId);
 
   return (
     <Link
@@ -31,11 +40,16 @@ export function ExpenseRow({
             {t.label}
           </span>
         </div>
-        {expense.description && (
-          <p className="mt-0.5 truncate text-xs text-ink-soft">{expense.description}</p>
+        {(expense.vendor || expense.description) && (
+          <p className="mt-0.5 truncate text-xs text-ink-soft">
+            {expense.vendor?.name}
+            {expense.vendor && expense.description ? " · " : ""}
+            {expense.description}
+          </p>
         )}
         <p className="mt-0.5 text-xs text-ink-soft">
-          {formatDate(expense.expense_date)} · {PAYMENT_METHOD_LABELS[expense.payment_method]}
+          {formatDate(expense.expense_date)} · {PAYMENT_METHOD_LABELS[expense.payment_method]} ·{" "}
+          {fundedByLabel(expense, currentMemberId)}
           {expense.added_by_profile ? ` · added by ${expense.added_by_profile.display_name}` : ""}
         </p>
       </div>

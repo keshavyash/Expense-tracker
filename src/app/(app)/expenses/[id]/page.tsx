@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getAllProfiles, getCategories, getCurrentProfile } from "@/lib/data";
+import { ensureHouseholdMember, getCategories, getCurrentProfile, getHouseholdMembers, getVendors } from "@/lib/data";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import type { Expense } from "@/lib/database.types";
 
@@ -16,23 +16,30 @@ export default async function EditExpensePage({
   const supabase = await createClient();
   const { data: expense } = await supabase
     .from("expenses")
-    .select("*")
+    .select("*, vendor:vendors(name)")
     .eq("id", id)
     .single();
 
   if (!expense) notFound();
 
-  const [categories, profiles] = await Promise.all([getCategories(), getAllProfiles()]);
-  const spouse = profiles.find((p) => p.id !== profile.id) ?? null;
+  const [categories, vendors, members, currentMember] = await Promise.all([
+    getCategories(),
+    getVendors(),
+    getHouseholdMembers(),
+    ensureHouseholdMember(),
+  ]);
+  const vendorName = (expense as unknown as { vendor: { name: string } | null }).vendor?.name ?? null;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 md:px-8 md:py-10">
       <h1 className="mb-6 text-lg font-semibold tracking-tight">Edit expense</h1>
       <ExpenseForm
         categories={categories}
-        currentProfile={profile}
-        spouseProfile={spouse}
+        vendors={vendors}
+        members={members}
+        currentMemberId={currentMember?.id ?? ""}
         existing={expense as Expense}
+        existingVendorName={vendorName}
       />
     </div>
   );

@@ -19,7 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-paper text-ink font-sans">
+      <body
+        className="min-h-full flex flex-col bg-paper text-ink font-sans"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

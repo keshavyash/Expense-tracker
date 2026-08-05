@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Category } from "@/lib/database.types";
-import { addCategory, deleteCategory, renameCategory } from "@/lib/actions";
-import { Trash2, Pencil, Check, X } from "lucide-react";
+import type { HouseholdMember } from "@/lib/database.types";
+import { addHouseholdMember, renameHouseholdMember } from "@/lib/actions";
+import { Pencil, Check, X, Link2 } from "lucide-react";
 
-export function CategoryManager({ categories }: { categories: Category[] }) {
+export function HouseholdMemberManager({
+  members,
+  currentMemberId,
+}: {
+  members: HouseholdMember[];
+  currentMemberId: string;
+}) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -18,50 +24,45 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
     if (!name.trim()) return;
     startTransition(async () => {
       try {
-        await addCategory(name);
+        await addHouseholdMember(name);
         setName("");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't add that category.");
+        setError(err instanceof Error ? err.message : "Couldn't add that person.");
       }
     });
   }
 
-  function startEditing(c: Category) {
-    setEditingId(c.id);
-    setEditValue(c.name);
+  function startEditing(m: HouseholdMember) {
+    setEditingId(m.id);
+    setEditValue(m.name);
   }
 
   function saveEdit(id: string) {
     if (!editValue.trim()) return;
     startTransition(async () => {
       try {
-        await renameCategory(id, editValue);
+        await renameHouseholdMember(id, editValue);
         setEditingId(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't rename that category.");
-      }
-    });
-  }
-
-  function handleDelete(id: string) {
-    if (!confirm("Delete this category? Existing expenses using it will keep it on record.")) return;
-    startTransition(async () => {
-      try {
-        await deleteCategory(id);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't delete that category.");
+        setError(err instanceof Error ? err.message : "Couldn't rename that person.");
       }
     });
   }
 
   return (
     <div>
+      <p className="mb-4 text-xs text-ink-soft">
+        These are the people expenses can belong to. No login required — add a placeholder for
+        anyone who doesn&apos;t have (or doesn&apos;t need) an account. If they sign in later, it
+        links automatically.
+      </p>
+
       <form onSubmit={handleAdd} className="mb-4 flex gap-2">
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Electricity"
+          placeholder="e.g. Priya"
           className="flex-1 rounded-sm border border-line bg-paper-raised px-3 py-2 text-sm outline-none focus:border-ink"
         />
         <button
@@ -78,12 +79,12 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
       )}
 
       <div className="rounded-md border border-line bg-paper-raised">
-        {categories.map((c) => (
+        {members.map((m) => (
           <div
-            key={c.id}
+            key={m.id}
             className="flex items-center justify-between gap-2 border-b border-line px-4 py-3 last:border-b-0"
           >
-            {editingId === c.id ? (
+            {editingId === m.id ? (
               <>
                 <input
                   autoFocus
@@ -91,13 +92,13 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") saveEdit(c.id);
+                    if (e.key === "Enter") saveEdit(m.id);
                     if (e.key === "Escape") setEditingId(null);
                   }}
                   className="flex-1 rounded-sm border border-ink bg-paper px-2 py-1 text-sm outline-none"
                 />
                 <button
-                  onClick={() => saveEdit(c.id)}
+                  onClick={() => saveEdit(m.id)}
                   disabled={pending}
                   className="text-common transition-std hover:opacity-70 disabled:opacity-50"
                   aria-label="Save"
@@ -114,31 +115,33 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
               </>
             ) : (
               <>
-                <span className="text-sm">{c.name}</span>
+                <span className="text-sm">
+                  {m.name}
+                  {m.id === currentMemberId && (
+                    <span className="ml-2 text-xs text-ink-soft">(you)</span>
+                  )}
+                </span>
                 <div className="flex items-center gap-3">
-                  {c.is_default && (
+                  {m.linked_user_id ? (
+                    <span
+                      className="flex items-center gap-1 rounded-sm bg-paper px-1.5 py-0.5 text-[11px] text-ink-soft"
+                      title="This person has their own login"
+                    >
+                      <Link2 size={11} /> linked
+                    </span>
+                  ) : (
                     <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] text-ink-soft">
-                      default
+                      no login
                     </span>
                   )}
                   <button
-                    onClick={() => startEditing(c)}
+                    onClick={() => startEditing(m)}
                     disabled={pending}
                     className="text-ink-soft transition-std hover:text-ink disabled:opacity-50"
-                    aria-label={`Rename ${c.name}`}
+                    aria-label={`Rename ${m.name}`}
                   >
                     <Pencil size={14} />
                   </button>
-                  {!c.is_default && (
-                    <button
-                      onClick={() => handleDelete(c.id)}
-                      disabled={pending}
-                      className="text-ink-soft transition-std hover:text-danger disabled:opacity-50"
-                      aria-label={`Delete ${c.name}`}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
                 </div>
               </>
             )}
