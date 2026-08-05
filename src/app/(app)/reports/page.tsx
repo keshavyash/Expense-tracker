@@ -16,11 +16,12 @@ function lastNMonths(n: number) {
 }
 
 export default async function ReportsPage() {
-  const currentMember = await ensureHouseholdMember();
-  if (!currentMember) redirect("/login");
-
   const months = lastNMonths(6);
-  const rangeExpenses = await getExpenses({ from: months[0].from, to: months[months.length - 1].to });
+  const [currentMember, rangeExpenses] = await Promise.all([
+    ensureHouseholdMember(),
+    getExpenses({ from: months[0].from, to: months[months.length - 1].to }),
+  ]);
+  if (!currentMember) redirect("/login");
 
   const byCategory = new Map<string, number>();
   for (const e of rangeExpenses) {

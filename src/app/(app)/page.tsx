@@ -10,8 +10,10 @@ export default async function DashboardPage() {
   if (!currentMember) redirect("/login");
 
   const { from, to } = monthRange();
-  const monthExpenses = await getExpenses({ from, to });
-  const recent = await getExpenses({ limit: 8 });
+  const [monthExpenses, recent] = await Promise.all([
+    getExpenses({ from, to }),
+    getExpenses({ limit: 8 }),
+  ]);
 
   const common = monthExpenses.filter((e) => e.expense_type === "common");
   const you = monthExpenses.filter(

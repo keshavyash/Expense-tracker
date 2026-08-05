@@ -14,18 +14,17 @@ export default async function ExpensesPage({
   if (!profile) redirect("/login");
 
   const sp = await searchParams;
-  const [categories, members, currentMember] = await Promise.all([
+  const [categories, members, currentMember, expenses] = await Promise.all([
     getCategories(),
     getHouseholdMembers(),
     ensureHouseholdMember(),
+    getExpenses({
+      expenseType: sp.type as "personal" | "common" | undefined,
+      ownerId: sp.owner,
+      categoryId: sp.category,
+      paymentMethod: sp.payment,
+    }),
   ]);
-
-  const expenses = await getExpenses({
-    expenseType: sp.type as "personal" | "common" | undefined,
-    ownerId: sp.owner,
-    categoryId: sp.category,
-    paymentMethod: sp.payment,
-  });
 
   const total = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
 

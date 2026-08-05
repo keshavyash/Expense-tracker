@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Category,
@@ -7,7 +8,7 @@ import type {
   Vendor,
 } from "@/lib/database.types";
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,16 +22,16 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .single();
 
   return data as Profile | null;
-}
+});
 
-export async function getHouseholdMembers(): Promise<HouseholdMember[]> {
+export const getHouseholdMembers = cache(async (): Promise<HouseholdMember[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("household_members")
     .select("*")
     .order("created_at", { ascending: true });
   return (data as HouseholdMember[]) ?? [];
-}
+});
 
 // Returns the household_member row representing the currently logged-in
 // person — creating one (or claiming an unclaimed placeholder, e.g. one
@@ -38,7 +39,7 @@ export async function getHouseholdMembers(): Promise<HouseholdMember[]> {
 // This is what lets "Personal (Spouse)" work even before your spouse
 // has an account: you add a placeholder member for her, and if she
 // signs in later, her login gets linked to that same record.
-export async function ensureHouseholdMember(): Promise<HouseholdMember | null> {
+export const ensureHouseholdMember = cache(async (): Promise<HouseholdMember | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -82,25 +83,25 @@ export async function ensureHouseholdMember(): Promise<HouseholdMember | null> {
     .single();
 
   return (created as HouseholdMember) ?? null;
-}
+});
 
-export async function getCategories(): Promise<Category[]> {
+export const getCategories = cache(async (): Promise<Category[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("categories")
     .select("*")
     .order("name", { ascending: true });
   return (data as Category[]) ?? [];
-}
+});
 
-export async function getVendors(): Promise<Vendor[]> {
+export const getVendors = cache(async (): Promise<Vendor[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("vendors")
     .select("*")
     .order("name", { ascending: true });
   return (data as Vendor[]) ?? [];
-}
+});
 
 export interface ExpenseFilters {
   from?: string;
