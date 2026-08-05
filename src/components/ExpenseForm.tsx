@@ -146,7 +146,8 @@ export function ExpenseForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <>
+      <form id="expense-form" onSubmit={handleSubmit} className="space-y-5 pb-4">
       {/* Amount + date */}
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm">
@@ -350,36 +351,43 @@ export function ExpenseForm({
           Saved. Add another below, or head to the list when you&apos;re done.
         </p>
       )}
+      </form>
 
-      <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center">
-        <button
-          type="submit"
-          disabled={pending}
-          className="flex-1 rounded-sm bg-common py-2.5 text-sm font-medium text-white transition-std hover:opacity-90 disabled:opacity-50"
-        >
-          {pending ? "Saving…" : existing ? "Save changes" : "Save expense"}
-        </button>
-        {!existing && (
+      {/* Fixed so the save actions are always reachable without scrolling —
+          sits above the mobile bottom tab bar, and flush with the bottom
+          of the content column (past the sidebar) on desktop. */}
+      <div className="fixed inset-x-0 bottom-16 z-20 border-t border-line bg-paper-raised px-4 py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] md:inset-x-auto md:left-56 md:right-0 md:bottom-0 md:px-8">
+        <div className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row sm:items-center">
           <button
-            type="button"
+            type="submit"
+            form="expense-form"
             disabled={pending}
-            onClick={(e) => handleSubmit(e, true)}
-            className="flex-1 rounded-sm border border-common py-2.5 text-sm font-medium text-common transition-std hover:bg-common-soft disabled:opacity-50"
+            className="flex-1 rounded-sm bg-common py-2.5 text-sm font-medium text-white transition-std hover:opacity-90 disabled:opacity-50"
           >
-            Save &amp; add another
+            {pending ? "Saving…" : existing ? "Save changes" : "Save expense"}
           </button>
-        )}
-        {existing && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={pending}
-            className="rounded-sm border border-line px-4 py-2.5 text-sm text-danger transition-std hover:bg-spouse-soft disabled:opacity-50"
-          >
-            Delete
-          </button>
-        )}
+          {!existing && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={(e) => handleSubmit(e, true)}
+              className="flex-1 rounded-sm border border-common py-2.5 text-sm font-medium text-common transition-std hover:bg-common-soft disabled:opacity-50"
+            >
+              Save &amp; add another
+            </button>
+          )}
+          {existing && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={pending}
+              className="rounded-sm border border-line px-4 py-2.5 text-sm text-danger transition-std hover:bg-spouse-soft disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
-    </form>
+    </>
   );
 }

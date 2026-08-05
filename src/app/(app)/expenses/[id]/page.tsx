@@ -32,7 +32,7 @@ export default async function EditExpensePage({
   const vendorName = (expense as unknown as { vendor: { name: string } | null }).vendor?.name ?? null;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 md:px-8 md:py-10">
+    <div className="mx-auto max-w-lg px-4 py-6 pb-28 md:px-8 md:py-10 md:pb-24">
       <h1 className="mb-6 text-lg font-semibold tracking-tight">Edit expense</h1>
       <ExpenseForm
         categories={categories}

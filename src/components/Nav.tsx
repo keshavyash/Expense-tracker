@@ -71,18 +71,11 @@ export function Nav({ displayName }: { displayName: string }) {
       </aside>
 
       {/* Mobile top bar */}
-      <div className="flex items-center justify-between border-b border-line bg-paper-raised px-4 py-3 md:hidden">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-ink font-mono text-xs text-paper">
-            ₹
-          </div>
-          <p className="text-sm font-semibold">Ledger</p>
+      <div className="flex items-center gap-2 border-b border-line bg-paper-raised px-4 py-3 md:hidden">
+        <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-ink font-mono text-xs text-paper">
+          ₹
         </div>
-        <form action={signOut}>
-          <button type="submit" className="text-ink-soft">
-            <LogOut size={18} />
-          </button>
-        </form>
+        <p className="text-sm font-semibold">Ledger</p>
       </div>
 
       {/* Mobile bottom tab bar */}
@@ -105,13 +98,15 @@ export function Nav({ displayName }: { displayName: string }) {
       </nav>
 
       {/* Mobile floating add button */}
-      <Link
-        href="/expenses/new"
-        className="fixed bottom-16 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-common text-white shadow-lg transition-std hover:opacity-90 md:hidden"
-        aria-label="Add expense"
-      >
-        <Plus size={24} />
-      </Link>
+      {!pathname.startsWith("/expenses/") && (
+        <Link
+          href="/expenses/new"
+          className="fixed bottom-16 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-common text-white shadow-lg transition-std hover:opacity-90 md:hidden"
+          aria-label="Add expense"
+        >
+          <Plus size={24} />
+        </Link>
+      )}
     </>
   );
 }

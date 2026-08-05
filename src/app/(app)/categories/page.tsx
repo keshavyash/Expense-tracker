@@ -2,6 +2,7 @@ import { ensureHouseholdMember, getCategories, getHouseholdMembers, getVendors }
 import { CategoryManager } from "@/components/CategoryManager";
 import { VendorManager } from "@/components/VendorManager";
 import { HouseholdMemberManager } from "@/components/HouseholdMemberManager";
+import { signOut } from "@/lib/actions";
 
 export default async function CategoriesPage() {
   const [categories, vendors, members, currentMember] = await Promise.all([
@@ -27,6 +28,15 @@ export default async function CategoriesPage() {
 
       <h2 className="mb-3 mt-8 text-sm font-semibold">Vendors</h2>
       <VendorManager vendors={vendors} />
+
+      <form action={signOut} className="mt-8">
+        <button
+          type="submit"
+          className="w-full rounded-sm border border-line py-2.5 text-sm text-ink-soft transition-std hover:border-danger hover:text-danger"
+        >
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

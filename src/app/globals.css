@@ -46,6 +46,16 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* iOS Safari auto-zooms on focus when an input's font-size is under
+   16px. Force 16px on mobile so typing never triggers that zoom. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* Ledger-style dotted leader between a label and a right-aligned value */
 .leader {
   flex: 1 1 auto;
