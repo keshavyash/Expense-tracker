@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +37,13 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { display_name: displayName || email.split("@")[0] } },
+        options: {
+          data: { display_name: displayName || email.split("@")[0] },
+          // explicit origin so the confirmation email points at wherever
+          // this signup actually happened (production or local), instead
+          // of whatever Supabase's dashboard "Site URL" happens to be set to
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       });
       if (error) {
         setError(error.message);
@@ -110,18 +118,27 @@ export default function LoginPage() {
             />
           </label>
 
-          <label className="mb-4 block text-sm">
+          <label className="mb-2 block text-sm">
             <span className="mb-1 block text-ink-soft">Password</span>
-            <input
-              type="password"
+            <PasswordInput
+              value={password}
+              onChange={setPassword}
               required
               minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-sm border border-line bg-paper px-3 py-2 outline-none focus:border-ink"
               placeholder="••••••••"
+              autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
             />
           </label>
+
+          {mode === "sign-in" && (
+            <Link
+              href="/forgot-password"
+              className="mb-4 block text-right text-xs text-ink-soft hover:text-common hover:underline"
+            >
+              Forgot password?
+            </Link>
+          )}
+          {mode === "sign-up" && <div className="mb-4" />}
 
           {error && (
             <p className="mb-3 rounded-sm bg-spouse-soft px-3 py-2 text-sm text-danger">

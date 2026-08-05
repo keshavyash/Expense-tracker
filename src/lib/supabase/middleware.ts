@@ -29,9 +29,17 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
+  const path = request.nextUrl.pathname;
+  // Routes that behave like /login: redirect away from these if already
+  // signed in, and never force a redirect-to-login for them.
+  const isAuthRoute = path.startsWith("/login") || path.startsWith("/forgot-password");
+  // Routes that must stay reachable regardless of auth state — the
+  // password-reset link lands on /reset-password with a fresh session
+  // from the recovery code, and /auth/confirm is the code-exchange step.
+  const isPublicRoute =
+    isAuthRoute || path.startsWith("/reset-password") || path.startsWith("/auth/confirm");
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
