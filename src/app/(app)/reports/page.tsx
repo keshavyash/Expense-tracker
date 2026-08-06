@@ -3,6 +3,7 @@ import { ensureHouseholdMember, getBalanceExpenses, getExpenses, getHouseholdMem
 import { CategoryBarChart, SplitPieChart, MonthlyTrendChart } from "@/components/Charts";
 import { BalanceCard } from "@/components/BalanceCard";
 import { DateRangeSelector } from "@/components/DateRangeSelector";
+import { ReportTypeFilter } from "@/components/ReportTypeFilter";
 import { RankedList } from "@/components/RankedList";
 import { ExportCsvButton } from "@/components/ExportCsvButton";
 import { formatDate, PAYMENT_METHOD_LABELS } from "@/lib/format";
@@ -15,7 +16,7 @@ function isoDate(d: Date) {
 function defaultReportRange(): { from: string; to: string } {
   const now = new Date();
   return {
-    from: isoDate(new Date(now.getFullYear(), now.getMonth() - 5, 1)),
+    from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
     to: isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
   };
 }
@@ -68,18 +69,19 @@ function monthParamToRange(param: string | undefined): { from: string; to: strin
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ month?: string; from?: string; to?: string; type?: string }>;
 }) {
   const sp = await searchParams;
   const balanceRange = monthParamToRange(sp.month);
   const defaultRange = defaultReportRange();
   const reportFrom = sp.from || defaultRange.from;
   const reportTo = sp.to || defaultRange.to;
+  const reportType = sp.type === "common" || sp.type === "personal" ? sp.type : undefined;
   const months = monthsBetween(reportFrom, reportTo);
 
   const [currentMember, rangeExpenses, balanceExpenses, members] = await Promise.all([
     ensureHouseholdMember(),
-    getExpenses({ from: reportFrom, to: reportTo }),
+    getExpenses({ from: reportFrom, to: reportTo, expenseType: reportType }),
     getBalanceExpenses({ from: balanceRange.from, to: balanceRange.to }),
     getHouseholdMembers(),
   ]);
@@ -138,7 +140,7 @@ export default async function ReportsPage({
     amount: v.total,
   }))
     .sort((a, b) => b.amount - a.amount)
-    .slice(0, 8);
+    .slice(0, 5);
 
   // Biggest single expenses
   const biggestExpenses = [...rangeExpenses]
@@ -170,9 +172,12 @@ export default async function ReportsPage({
           filename={`expenses_${reportFrom}_to_${reportTo}.csv`}
         />
       </div>
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         <Suspense>
           <DateRangeSelector from={reportFrom} to={reportTo} />
+        </Suspense>
+        <Suspense>
+          <ReportTypeFilter value={sp.type ?? ""} />
         </Suspense>
       </div>
 
