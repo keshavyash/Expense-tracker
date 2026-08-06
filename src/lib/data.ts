@@ -180,3 +180,25 @@ export function monthRange(date = new Date()): { from: string; to: string } {
   const to = new Date(y, m + 1, 0).toISOString().slice(0, 10);
   return { from, to };
 }
+
+// Lightweight, all-time (not date-bounded) fetch of just the fields
+// needed to compute who owes whom — used by the Reports balance card.
+export interface BalanceExpense {
+  amount: number;
+  expense_type: "personal" | "common";
+  owner_id: string | null;
+  funded_by: string | null;
+}
+
+export async function getBalanceExpenses(range?: {
+  from: string;
+  to: string;
+}): Promise<BalanceExpense[]> {
+  const supabase = await createClient();
+  let query = supabase.from("expenses").select("amount, expense_type, owner_id, funded_by");
+  if (range) {
+    query = query.gte("expense_date", range.from).lte("expense_date", range.to);
+  }
+  const { data } = await query;
+  return (data as BalanceExpense[]) ?? [];
+}

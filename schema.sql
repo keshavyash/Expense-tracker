@@ -40,6 +40,10 @@ create table public.household_members (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   linked_user_id uuid unique references auth.users(id),
+  -- exactly one member can be flagged as the Sodexo owner — Sodexo
+  -- expenses always fund from their account regardless of who's
+  -- filling out the expense form (enforced in the app, not the DB)
+  owns_sodexo boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -133,7 +137,7 @@ create policy "authenticated users can delete groups"
 
 -- 6. EXPENSES
 create type expense_type as enum ('personal', 'common');
-create type payment_method as enum ('card', 'cash', 'upi', 'bank_transfer');
+create type payment_method as enum ('card', 'cash', 'upi', 'bank_transfer', 'sodexo');
 
 create table public.expenses (
   id uuid primary key default gen_random_uuid(),

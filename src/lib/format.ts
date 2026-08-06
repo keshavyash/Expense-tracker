@@ -21,4 +21,5 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
   upi: "UPI",
   bank_transfer: "Bank transfer",
+  sodexo: "Sodexo",
 };

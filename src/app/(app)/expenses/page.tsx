@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { ensureHouseholdMember, getCategories, getCurrentProfile, getExpenses, getGroups, getHouseholdMembers } from "@/lib/data";
 import { ExpenseRow } from "@/components/ExpenseRow";
 import { FilterBar } from "@/components/FilterBar";
+import { ExportCsvButton } from "@/components/ExportCsvButton";
 import { formatMoney } from "@/lib/format";
 import { redirect } from "next/navigation";
 
@@ -32,11 +33,15 @@ export default async function ExpensesPage({
 
   return (
     <div className="mx-auto max-w-3xl md:px-8">
-      <div className="flex items-center justify-between px-4 py-6 md:px-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-6 md:px-0">
         <h1 className="text-lg font-semibold tracking-tight">Expenses</h1>
-        <p className="font-mono text-sm tabular text-ink-soft">
-          {expenses.length} · <span className="font-semibold text-ink">{formatMoney(total)}</span>
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="font-mono text-sm tabular text-ink-soft">
+            {expenses.length} ·{" "}
+            <span className="font-semibold text-ink">{formatMoney(total)}</span>
+          </p>
+          <ExportCsvButton expenses={expenses} filename="expenses.csv" />
+        </div>
       </div>
 
       <div className="rounded-md border border-line bg-paper-raised md:mb-10">

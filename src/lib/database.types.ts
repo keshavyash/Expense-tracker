@@ -1,5 +1,5 @@
 export type ExpenseType = "personal" | "common";
-export type PaymentMethod = "card" | "cash" | "upi" | "bank_transfer";
+export type PaymentMethod = "card" | "cash" | "upi" | "bank_transfer" | "sodexo";
 
 // A login — someone who can sign into the app.
 export interface Profile {
@@ -15,6 +15,7 @@ export interface HouseholdMember {
   id: string;
   name: string;
   linked_user_id: string | null;
+  owns_sodexo: boolean;
   created_at: string;
 }
 

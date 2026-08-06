@@ -230,6 +230,28 @@ export async function renameHouseholdMember(id: string, name: string) {
   revalidatePath("/");
 }
 
+// Exactly one household member can hold the Sodexo card — unset
+// everyone else first, then flag the chosen one.
+export async function setSodexoOwner(id: string) {
+  const supabase = await createClient();
+
+  const { error: clearError } = await supabase
+    .from("household_members")
+    .update({ owns_sodexo: false })
+    .eq("owns_sodexo", true);
+  if (clearError) throw new Error(clearError.message);
+
+  const { error: setError } = await supabase
+    .from("household_members")
+    .update({ owns_sodexo: true })
+    .eq("id", id);
+  if (setError) throw new Error(setError.message);
+
+  revalidatePath("/categories");
+  revalidatePath("/expenses");
+  revalidatePath("/expenses/new");
+}
+
 export async function addVendor(name: string) {
   const supabase = await createClient();
   const {

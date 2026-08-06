@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import type { HouseholdMember } from "@/lib/database.types";
-import { addHouseholdMember, renameHouseholdMember } from "@/lib/actions";
-import { Pencil, Check, X, Link2 } from "lucide-react";
+import { addHouseholdMember, renameHouseholdMember, setSodexoOwner } from "@/lib/actions";
+import { Pencil, Check, X, Link2, UtensilsCrossed } from "lucide-react";
 
 export function HouseholdMemberManager({
   members,
@@ -49,6 +49,16 @@ export function HouseholdMemberManager({
     });
   }
 
+  function handleSetSodexoOwner(id: string) {
+    startTransition(async () => {
+      try {
+        await setSodexoOwner(id);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't update the Sodexo owner.");
+      }
+    });
+  }
+
   return (
     <div>
       <p className="mb-4 text-xs text-ink-soft">
@@ -82,10 +92,10 @@ export function HouseholdMemberManager({
         {members.map((m) => (
           <div
             key={m.id}
-            className="flex items-center justify-between gap-2 border-b border-line px-4 py-3 last:border-b-0"
+            className="flex flex-col gap-1.5 border-b border-line px-4 py-3 last:border-b-0"
           >
             {editingId === m.id ? (
-              <>
+              <div className="flex items-center gap-2">
                 <input
                   autoFocus
                   type="text"
@@ -112,37 +122,52 @@ export function HouseholdMemberManager({
                 >
                   <X size={16} />
                 </button>
-              </>
+              </div>
             ) : (
               <>
-                <span className="text-sm">
-                  {m.name}
-                  {m.id === currentMemberId && (
-                    <span className="ml-2 text-xs text-ink-soft">(you)</span>
-                  )}
-                </span>
-                <div className="flex items-center gap-3">
-                  {m.linked_user_id ? (
-                    <span
-                      className="flex items-center gap-1 rounded-sm bg-paper px-1.5 py-0.5 text-[11px] text-ink-soft"
-                      title="This person has their own login"
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm">
+                    {m.name}
+                    {m.id === currentMemberId && (
+                      <span className="ml-2 text-xs text-ink-soft">(you)</span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {m.linked_user_id ? (
+                      <span
+                        className="flex items-center gap-1 rounded-sm bg-paper px-1.5 py-0.5 text-[11px] text-ink-soft"
+                        title="This person has their own login"
+                      >
+                        <Link2 size={11} /> linked
+                      </span>
+                    ) : (
+                      <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] text-ink-soft">
+                        no login
+                      </span>
+                    )}
+                    <button
+                      onClick={() => startEditing(m)}
+                      disabled={pending}
+                      className="text-ink-soft transition-std hover:text-ink disabled:opacity-50"
+                      aria-label={`Rename ${m.name}`}
                     >
-                      <Link2 size={11} /> linked
-                    </span>
-                  ) : (
-                    <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] text-ink-soft">
-                      no login
-                    </span>
-                  )}
-                  <button
-                    onClick={() => startEditing(m)}
-                    disabled={pending}
-                    className="text-ink-soft transition-std hover:text-ink disabled:opacity-50"
-                    aria-label={`Rename ${m.name}`}
-                  >
-                    <Pencil size={14} />
-                  </button>
+                      <Pencil size={14} />
+                    </button>
+                  </div>
                 </div>
+                {m.owns_sodexo ? (
+                  <span className="flex w-fit items-center gap-1 rounded-sm bg-you-soft px-1.5 py-0.5 text-[11px] text-you">
+                    <UtensilsCrossed size={11} /> Sodexo owner
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleSetSodexoOwner(m.id)}
+                    disabled={pending}
+                    className="w-fit text-[11px] text-ink-soft underline underline-offset-2 transition-std hover:text-ink disabled:opacity-50"
+                  >
+                    Set as Sodexo owner
+                  </button>
+                )}
               </>
             )}
           </div>

@@ -19,6 +19,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "cash", label: "Cash" },
   { value: "upi", label: "UPI" },
   { value: "bank_transfer", label: "Bank transfer" },
+  { value: "sodexo", label: "Sodexo" },
 ];
 
 function todayISO() {
@@ -70,6 +71,8 @@ export function ExpenseForm({
   const [vendorName, setVendorName] = useState(existingVendorName ?? "");
   const [groupId, setGroupId] = useState<string>(existing?.group_id ?? defaultGroupId ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
+
+  const sodexoOwner = members.find((m) => m.owns_sodexo);
 
   function buildInput(): ExpenseInput | null {
     const parsedAmount = parseFloat(amount);
@@ -276,13 +279,21 @@ export function ExpenseForm({
       {/* Payment method */}
       <div>
         <span className="mb-1.5 block text-sm text-ink-soft">Payment method</span>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="flex flex-wrap gap-2">
           {PAYMENT_METHODS.map((pm) => (
             <button
               key={pm.value}
               type="button"
-              onClick={() => setPaymentMethod(pm.value)}
-              className={`rounded-sm border px-2 py-2 text-xs transition-std ${
+              onClick={() => {
+                setPaymentMethod(pm.value);
+                // Sodexo is a personal benefit card belonging to one
+                // specific person — always funds from their account,
+                // regardless of who's filling out this form.
+                if (pm.value === "sodexo") {
+                  setFundedBy(sodexoOwner?.id ?? currentMemberId);
+                }
+              }}
+              className={`min-w-[80px] flex-1 rounded-sm border px-2 py-2 text-xs transition-std ${
                 paymentMethod === pm.value
                   ? "border-ink bg-ink text-paper"
                   : "border-line text-ink-soft"
@@ -297,38 +308,49 @@ export function ExpenseForm({
       {/* Funded by (whose account paid) */}
       <div>
         <span className="mb-1.5 block text-sm text-ink-soft">Paid from</span>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setFundedBy(null)}
-            className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
-              fundedBy === null
-                ? "border-common bg-common-soft text-common"
-                : "border-line text-ink-soft"
-            }`}
-          >
-            Common account
-          </button>
-          {members.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setFundedBy(m.id)}
-              className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
-                fundedBy === m.id
-                  ? m.id === currentMemberId
-                    ? "border-you bg-you-soft text-you"
-                    : "border-spouse bg-spouse-soft text-spouse"
-                  : "border-line text-ink-soft"
-              }`}
-            >
-              {memberLabel(m, currentMemberId)}&apos;s account
-            </button>
-          ))}
-        </div>
-        <p className="mt-1.5 text-xs text-ink-soft">
-          Which card/UPI/account actually paid — separate from who the spend counts against above.
-        </p>
+        {paymentMethod === "sodexo" ? (
+          <p className="rounded-sm border border-line bg-paper px-3 py-2 text-sm text-ink-soft">
+            {sodexoOwner
+              ? `${memberLabel(sodexoOwner, currentMemberId)}'s account — Sodexo always funds from the designated owner's balance.`
+              : "No Sodexo owner set yet — set one from the Categories & household page. Defaulting to your account for now."}
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setFundedBy(null)}
+                className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
+                  fundedBy === null
+                    ? "border-common bg-common-soft text-common"
+                    : "border-line text-ink-soft"
+                }`}
+              >
+                Common account
+              </button>
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setFundedBy(m.id)}
+                  className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
+                    fundedBy === m.id
+                      ? m.id === currentMemberId
+                        ? "border-you bg-you-soft text-you"
+                        : "border-spouse bg-spouse-soft text-spouse"
+                      : "border-line text-ink-soft"
+                  }`}
+                >
+                  {memberLabel(m, currentMemberId)}&apos;s account
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-ink-soft">
+              Which card/UPI/account actually paid — separate from who the spend counts against
+              above.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Description */}
