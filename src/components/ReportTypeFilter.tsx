@@ -9,8 +9,7 @@ export function ReportTypeFilter({ value }: { value: string }) {
 
   function handleChange(v: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (v) params.set("type", v);
-    else params.delete("type");
+    params.set("type", v);
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -20,9 +19,9 @@ export function ReportTypeFilter({ value }: { value: string }) {
       onChange={(e) => handleChange(e.target.value)}
       className="rounded-sm border border-line bg-paper px-2 py-1.5 text-sm outline-none focus:border-ink"
     >
-      <option value="">Common + Personal</option>
       <option value="common">Common only</option>
       <option value="personal">Personal only</option>
+      <option value="all">Common + Personal</option>
     </select>
   );
 }

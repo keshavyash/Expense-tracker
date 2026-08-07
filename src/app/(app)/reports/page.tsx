@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { ensureHouseholdMember, getBalanceExpenses, getExpenses, getHouseholdMembers } from "@/lib/data";
+import { ensureHouseholdMember, getExpenses, getHouseholdMembers } from "@/lib/data";
 import { CategoryBarChart, SplitPieChart, MonthlyTrendChart } from "@/components/Charts";
 import { BalanceCard } from "@/components/BalanceCard";
 import { DateRangeSelector } from "@/components/DateRangeSelector";
@@ -17,7 +17,7 @@ function defaultReportRange(): { from: string; to: string } {
   const now = new Date();
   return {
     from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
-    to: isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    to: isoDate(now),
   };
 }
 
@@ -76,13 +76,13 @@ export default async function ReportsPage({
   const defaultRange = defaultReportRange();
   const reportFrom = sp.from || defaultRange.from;
   const reportTo = sp.to || defaultRange.to;
-  const reportType = sp.type === "common" || sp.type === "personal" ? sp.type : undefined;
+  const reportType = sp.type === "personal" ? "personal" : sp.type === "all" ? undefined : "common";
   const months = monthsBetween(reportFrom, reportTo);
 
   const [currentMember, rangeExpenses, balanceExpenses, members] = await Promise.all([
     ensureHouseholdMember(),
     getExpenses({ from: reportFrom, to: reportTo, expenseType: reportType }),
-    getBalanceExpenses({ from: balanceRange.from, to: balanceRange.to }),
+    getExpenses({ from: balanceRange.from, to: balanceRange.to }),
     getHouseholdMembers(),
   ]);
   if (!currentMember) redirect("/login");
@@ -177,7 +177,7 @@ export default async function ReportsPage({
           <DateRangeSelector from={reportFrom} to={reportTo} />
         </Suspense>
         <Suspense>
-          <ReportTypeFilter value={sp.type ?? ""} />
+          <ReportTypeFilter value={sp.type ?? "common"} />
         </Suspense>
       </div>
 
