@@ -45,21 +45,51 @@ function computeBalance(
         });
       }
     } else if (e.expense_type === "common") {
-      if (e.funded_by === currentMemberId) {
-        net += amount / 2;
-        contributions.push({
-          expense: e,
-          signedAmount: amount / 2,
-          note: "Common expense — you paid (your half counted)",
-        });
-      }
-      if (e.funded_by === otherMemberId) {
-        net -= amount / 2;
-        contributions.push({
-          expense: e,
-          signedAmount: -amount / 2,
-          note: `Common expense — ${otherMemberName} paid (their half counted)`,
-        });
+      const hasSplit = e.splits && e.splits.length > 0;
+
+      if (hasSplit) {
+        // A custom split overrides the default 50/50 assumption — use
+        // the actual recorded share for whichever of you didn't pay.
+        const yourShare =
+          e.splits.find((s) => s.party_type === "member" && s.member_id === currentMemberId)
+            ?.share_amount ?? 0;
+        const otherShare =
+          e.splits.find((s) => s.party_type === "member" && s.member_id === otherMemberId)
+            ?.share_amount ?? 0;
+
+        if (e.funded_by === currentMemberId && Number(otherShare) > 0) {
+          net += Number(otherShare);
+          contributions.push({
+            expense: e,
+            signedAmount: Number(otherShare),
+            note: "Common expense (split) — you paid, their share",
+          });
+        }
+        if (e.funded_by === otherMemberId && Number(yourShare) > 0) {
+          net -= Number(yourShare);
+          contributions.push({
+            expense: e,
+            signedAmount: -Number(yourShare),
+            note: "Common expense (split) — they paid, your share",
+          });
+        }
+      } else {
+        if (e.funded_by === currentMemberId) {
+          net += amount / 2;
+          contributions.push({
+            expense: e,
+            signedAmount: amount / 2,
+            note: "Common expense — you paid (your half counted)",
+          });
+        }
+        if (e.funded_by === otherMemberId) {
+          net -= amount / 2;
+          contributions.push({
+            expense: e,
+            signedAmount: -amount / 2,
+            note: `Common expense — ${otherMemberName} paid (their half counted)`,
+          });
+        }
       }
     }
   }

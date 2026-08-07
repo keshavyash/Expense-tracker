@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { ExpenseType, PaymentMethod } from "@/lib/database.types";
+import type { ExpenseType, PaymentMethod, SplitPartyType } from "@/lib/database.types";
+
+export interface ExpenseSplitInput {
+  party_type: SplitPartyType;
+  member_id: string | null;
+  share_amount: number;
+}
 
 export interface ExpenseInput {
   amount: number;
@@ -14,10 +20,14 @@ export interface ExpenseInput {
   payment_method: PaymentMethod;
   // whose account paid — null means the shared/common account
   funded_by: string | null;
+  // an outside party paid — mutually exclusive with funded_by
+  paid_by_others: boolean;
   // free-typed vendor name; resolved to a vendor_id (creating one if needed)
   vendor_name: string | null;
   group_id: string | null;
   description: string | null;
+  // null/empty = no split; otherwise each party's final share, must sum to amount
+  splits: ExpenseSplitInput[] | null;
 }
 
 async function resolveVendorId(
@@ -58,6 +68,31 @@ async function resolveVendorId(
   return (created as { id: string }).id;
 }
 
+async function saveSplits(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  expenseId: string,
+  splits: ExpenseSplitInput[] | null
+) {
+  // Replace-all pattern: simplest way to keep splits in sync with edits.
+  const { error: deleteError } = await supabase
+    .from("expense_splits")
+    .delete()
+    .eq("expense_id", expenseId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  if (!splits || splits.length === 0) return;
+
+  const { error: insertError } = await supabase.from("expense_splits").insert(
+    splits.map((s) => ({
+      expense_id: expenseId,
+      party_type: s.party_type,
+      member_id: s.member_id,
+      share_amount: s.share_amount,
+    }))
+  );
+  if (insertError) throw new Error(insertError.message);
+}
+
 export async function addExpense(input: ExpenseInput) {
   const supabase = await createClient();
   const {
@@ -67,25 +102,33 @@ export async function addExpense(input: ExpenseInput) {
 
   const vendor_id = await resolveVendorId(supabase, input.vendor_name, user.id);
 
-  const { error } = await supabase.from("expenses").insert({
-    amount: input.amount,
-    expense_date: input.expense_date,
-    category_id: input.category_id,
-    expense_type: input.expense_type,
-    owner_id: input.owner_id,
-    payment_method: input.payment_method,
-    funded_by: input.funded_by,
-    vendor_id,
-    group_id: input.group_id,
-    description: input.description,
-    added_by: user.id,
-  });
+  const { data: created, error } = await supabase
+    .from("expenses")
+    .insert({
+      amount: input.amount,
+      expense_date: input.expense_date,
+      category_id: input.category_id,
+      expense_type: input.expense_type,
+      owner_id: input.owner_id,
+      payment_method: input.payment_method,
+      funded_by: input.funded_by,
+      paid_by_others: input.paid_by_others,
+      vendor_id,
+      group_id: input.group_id,
+      description: input.description,
+      added_by: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) throw new Error(error.message);
+
+  await saveSplits(supabase, (created as { id: string }).id, input.splits);
 
   revalidatePath("/");
   revalidatePath("/expenses");
   revalidatePath("/reports");
+  revalidatePath("/groups");
 }
 
 export async function updateExpense(id: string, input: ExpenseInput) {
@@ -107,6 +150,7 @@ export async function updateExpense(id: string, input: ExpenseInput) {
       owner_id: input.owner_id,
       payment_method: input.payment_method,
       funded_by: input.funded_by,
+      paid_by_others: input.paid_by_others,
       vendor_id,
       group_id: input.group_id,
       description: input.description,
@@ -115,9 +159,12 @@ export async function updateExpense(id: string, input: ExpenseInput) {
 
   if (error) throw new Error(error.message);
 
+  await saveSplits(supabase, id, input.splits);
+
   revalidatePath("/");
   revalidatePath("/expenses");
   revalidatePath("/reports");
+  revalidatePath("/groups");
 }
 
 export async function deleteExpense(id: string) {
@@ -166,7 +213,7 @@ export async function deleteCategory(id: string) {
   revalidatePath("/categories");
 }
 
-export async function addGroup(name: string) {
+export async function addGroup(name: string, othersInvolved: boolean) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -178,7 +225,7 @@ export async function addGroup(name: string) {
 
   const { data, error } = await supabase
     .from("groups")
-    .insert({ name: trimmed, created_by: user.id })
+    .insert({ name: trimmed, created_by: user.id, others_involved: othersInvolved })
     .select("id")
     .single();
 
@@ -196,6 +243,18 @@ export async function renameGroup(id: string, name: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/groups");
   revalidatePath("/expenses");
+}
+
+export async function setGroupOthersInvolved(id: string, value: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("groups")
+    .update({ others_involved: value })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/groups");
+  revalidatePath("/expenses");
+  revalidatePath("/expenses/new");
 }
 
 export async function deleteGroup(id: string) {

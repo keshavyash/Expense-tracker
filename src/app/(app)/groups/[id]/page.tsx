@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureHouseholdMember, getExpenses } from "@/lib/data";
 import { ExpenseRow } from "@/components/ExpenseRow";
 import { GroupHeader } from "@/components/GroupHeader";
+import { GroupOthersBalance } from "@/components/GroupOthersBalance";
 import { formatMoney } from "@/lib/format";
 import type { Group } from "@/lib/database.types";
 
@@ -28,6 +29,8 @@ export default async function GroupDetailPage({
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
       <GroupHeader group={group as Group} />
+
+      {(group as Group).others_involved && <GroupOthersBalance expenses={expenses} />}
 
       <div className="mb-4 flex items-center justify-between">
         <p className="font-mono text-sm tabular text-ink-soft">

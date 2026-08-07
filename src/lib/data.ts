@@ -162,7 +162,7 @@ export async function getExpenses(
   let query = supabase
     .from("expenses")
     .select(
-      "*, category:categories(*), owner:household_members!expenses_owner_id_fkey(*), funded_by_member:household_members!expenses_funded_by_fkey(*), added_by_profile:profiles!expenses_added_by_fkey(*), vendor:vendors(*), group:groups(*)"
+      "*, category:categories(*), owner:household_members!expenses_owner_id_fkey(*), funded_by_member:household_members!expenses_funded_by_fkey(*), added_by_profile:profiles!expenses_added_by_fkey(*), vendor:vendors(*), group:groups(*), splits:expense_splits(*, member:household_members(*))"
     )
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false });

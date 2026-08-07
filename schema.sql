@@ -114,6 +114,10 @@ create table public.groups (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   created_by uuid references public.profiles(id),
+  -- does this group ever involve third parties who aren't household
+  -- members (e.g. friends on a trip)? Controls whether "Others" shows
+  -- up as a splittable/payer option for expenses in this group.
+  others_involved boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -155,6 +159,9 @@ create table public.expenses (
   -- independent of expense_type. NULL means the shared/common account
   -- (e.g. a common expense can still be fronted on your personal card).
   funded_by uuid references public.household_members(id),
+  -- whether an outside party paid — mutually exclusive with funded_by
+  -- having a value (enforced in the app, not the DB)
+  paid_by_others boolean not null default false,
   description text,
   added_by uuid not null references public.profiles(id) default auth.uid(),
   created_at timestamptz not null default now(),
@@ -183,6 +190,41 @@ $$;
 create trigger expenses_set_updated_at
   before update on public.expenses
   for each row execute procedure public.set_updated_at();
+
+-- 7. EXPENSE SPLITS — one row per party sharing an expense.
+-- party_type = 'others' represents the whole untracked third-party
+-- group (e.g. friends on a trip) as a single lump share.
+create table public.expense_splits (
+  id uuid primary key default gen_random_uuid(),
+  expense_id uuid not null references public.expenses(id) on delete cascade,
+  party_type text not null check (party_type in ('member', 'others')),
+  member_id uuid references public.household_members(id),
+  share_amount numeric(12,2) not null check (share_amount >= 0),
+  constraint member_id_matches_party_type check (
+    (party_type = 'member' and member_id is not null) or
+    (party_type = 'others' and member_id is null)
+  )
+);
+
+create index expense_splits_expense_idx on public.expense_splits (expense_id);
+
+alter table public.expense_splits enable row level security;
+
+create policy "expense_splits readable by authenticated users"
+  on public.expense_splits for select
+  using (auth.role() = 'authenticated');
+
+create policy "authenticated users can add expense_splits"
+  on public.expense_splits for insert
+  with check (auth.role() = 'authenticated');
+
+create policy "authenticated users can update expense_splits"
+  on public.expense_splits for update
+  using (auth.role() = 'authenticated');
+
+create policy "authenticated users can delete expense_splits"
+  on public.expense_splits for delete
+  using (auth.role() = 'authenticated');
 
 -- ============================================================
 -- ROW LEVEL SECURITY (expenses, categories, profiles)

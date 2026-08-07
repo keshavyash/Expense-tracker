@@ -12,6 +12,7 @@ function typeLabel(e: ExpenseWithRelations, currentMemberId: string) {
 }
 
 function fundedByLabel(e: ExpenseWithRelations, currentMemberId: string) {
+  if (e.paid_by_others) return "Others (untracked)";
   if (!e.funded_by) return "Common account";
   if (e.funded_by === currentMemberId) return "Your account";
   return `${e.funded_by_member?.name ?? "?"}'s account`;
@@ -42,6 +43,11 @@ export function ExpenseRow({
           {expense.group && (
             <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
               {expense.group.name}
+            </span>
+          )}
+          {expense.splits.length > 0 && (
+            <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
+              Split
             </span>
           )}
         </div>

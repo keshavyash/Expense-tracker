@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Group } from "@/lib/database.types";
-import { deleteGroup, renameGroup } from "@/lib/actions";
+import { deleteGroup, renameGroup, setGroupOthersInvolved } from "@/lib/actions";
 import { Pencil, Check, X, Trash2 } from "lucide-react";
 
 export function GroupHeader({ group }: { group: Group }) {
@@ -22,6 +22,17 @@ export function GroupHeader({ group }: { group: Group }) {
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Couldn't rename that group.");
+      }
+    });
+  }
+
+  function toggleOthersInvolved(checked: boolean) {
+    startTransition(async () => {
+      try {
+        await setGroupOthersInvolved(group.id, checked);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't update that setting.");
       }
     });
   }
@@ -103,6 +114,16 @@ export function GroupHeader({ group }: { group: Group }) {
       {error && (
         <p className="mt-2 rounded-sm bg-spouse-soft px-3 py-2 text-sm text-danger">{error}</p>
       )}
+      <label className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
+        <input
+          type="checkbox"
+          checked={group.others_involved}
+          disabled={pending}
+          onChange={(e) => toggleOthersInvolved(e.target.checked)}
+          className="h-3.5 w-3.5 rounded-sm border-line accent-common"
+        />
+        Friends or other people outside the household are involved in this group
+      </label>
     </div>
   );
 }

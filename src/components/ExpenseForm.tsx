@@ -6,6 +6,7 @@ import Link from "next/link";
 import type {
   Category,
   Expense,
+  ExpenseSplitWithMember,
   Group,
   HouseholdMember,
   PaymentMethod,
@@ -13,6 +14,8 @@ import type {
 } from "@/lib/database.types";
 import { addExpense, deleteExpense, updateExpense, type ExpenseInput } from "@/lib/actions";
 import { VendorCombobox } from "@/components/VendorCombobox";
+import { ExpenseSplitEditor } from "@/components/ExpenseSplitEditor";
+import { computeSplitShares, type SplitPartyState, type SplitState } from "@/lib/split";
 import { todayIST } from "@/lib/dates";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
@@ -27,6 +30,32 @@ function memberLabel(m: HouseholdMember, currentMemberId: string) {
   return m.id === currentMemberId ? "You" : m.name;
 }
 
+function buildInitialSplitParties(
+  members: HouseholdMember[],
+  othersAllowed: boolean,
+  existingSplits?: ExpenseSplitWithMember[]
+): SplitPartyState[] {
+  const parties: SplitPartyState[] = members.map((m) => ({
+    key: `member:${m.id}`,
+    partyType: "member",
+    memberId: m.id,
+    included: false,
+    input: "",
+  }));
+  if (othersAllowed) {
+    parties.push({ key: "others", partyType: "others", memberId: null, included: false, input: "" });
+  }
+  for (const s of existingSplits ?? []) {
+    const key = s.party_type === "others" ? "others" : `member:${s.member_id}`;
+    const party = parties.find((p) => p.key === key);
+    if (party) {
+      party.included = true;
+      party.input = String(s.share_amount);
+    }
+  }
+  return parties;
+}
+
 export function ExpenseForm({
   categories,
   vendors,
@@ -35,6 +64,7 @@ export function ExpenseForm({
   currentMemberId,
   existing,
   existingVendorName,
+  existingSplits,
   defaultGroupId,
 }: {
   categories: Category[];
@@ -44,6 +74,7 @@ export function ExpenseForm({
   currentMemberId: string;
   existing?: Expense;
   existingVendorName?: string | null;
+  existingSplits?: ExpenseSplitWithMember[];
   defaultGroupId?: string;
 }) {
   const router = useRouter();
@@ -68,8 +99,30 @@ export function ExpenseForm({
   const [vendorName, setVendorName] = useState(existingVendorName ?? "");
   const [groupId, setGroupId] = useState<string>(existing?.group_id ?? defaultGroupId ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
+  const [paidByOthers, setPaidByOthers] = useState(existing?.paid_by_others ?? false);
 
   const sodexoOwner = members.find((m) => m.owns_sodexo);
+  const selectedGroup = groups.find((g) => g.id === groupId);
+  const othersAllowed = selectedGroup?.others_involved ?? false;
+  const splitAvailable = expenseType === "common" && Boolean(groupId);
+
+  const [splitState, setSplitState] = useState<SplitState>(() => ({
+    enabled: (existingSplits?.length ?? 0) > 0,
+    method: "actual",
+    parties: buildInitialSplitParties(members, othersAllowed, existingSplits),
+  }));
+
+  // Keep the "Others" split option in sync if the selected group's
+  // others_involved setting changes mid-edit (or a different group with a
+  // different setting is picked).
+  if (othersAllowed !== splitState.parties.some((p) => p.key === "others")) {
+    setSplitState((prev) => ({
+      ...prev,
+      parties: othersAllowed
+        ? [...prev.parties, { key: "others", partyType: "others", memberId: null, included: false, input: "" }]
+        : prev.parties.filter((p) => p.key !== "others"),
+    }));
+  }
 
   function buildInput(): ExpenseInput | null {
     const parsedAmount = parseFloat(amount);
@@ -81,6 +134,21 @@ export function ExpenseForm({
       setError("Choose a category.");
       return null;
     }
+
+    let splits: ExpenseInput["splits"] = null;
+    if (splitAvailable && splitState.enabled) {
+      const { shares, error: splitError } = computeSplitShares(splitState, parsedAmount);
+      if (splitError) {
+        setError(splitError);
+        return null;
+      }
+      splits = shares.map((s) => ({
+        party_type: s.partyType,
+        member_id: s.memberId,
+        share_amount: s.amount,
+      }));
+    }
+
     return {
       amount: parsedAmount,
       expense_date: date,
@@ -88,10 +156,12 @@ export function ExpenseForm({
       expense_type: expenseType,
       owner_id: expenseType === "personal" ? ownerId : null,
       payment_method: paymentMethod,
-      funded_by: fundedBy,
+      funded_by: paidByOthers ? null : fundedBy,
+      paid_by_others: paidByOthers,
       vendor_name: vendorName.trim() || null,
       group_id: groupId || null,
       description: description.trim() || null,
+      splits,
     };
   }
 
@@ -288,6 +358,7 @@ export function ExpenseForm({
                 // regardless of who's filling out this form.
                 if (pm.value === "sodexo") {
                   setFundedBy(sodexoOwner?.id ?? currentMemberId);
+                  setPaidByOthers(false);
                 }
               }}
               className={`min-w-[80px] flex-1 rounded-sm border px-2 py-2 text-xs transition-std ${
@@ -316,9 +387,12 @@ export function ExpenseForm({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setFundedBy(null)}
+                onClick={() => {
+                  setFundedBy(null);
+                  setPaidByOthers(false);
+                }}
                 className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
-                  fundedBy === null
+                  fundedBy === null && !paidByOthers
                     ? "border-common bg-common-soft text-common"
                     : "border-line text-ink-soft"
                 }`}
@@ -329,9 +403,12 @@ export function ExpenseForm({
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => setFundedBy(m.id)}
+                  onClick={() => {
+                    setFundedBy(m.id);
+                    setPaidByOthers(false);
+                  }}
                   className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
-                    fundedBy === m.id
+                    fundedBy === m.id && !paidByOthers
                       ? m.id === currentMemberId
                         ? "border-you bg-you-soft text-you"
                         : "border-spouse bg-spouse-soft text-spouse"
@@ -341,6 +418,19 @@ export function ExpenseForm({
                   {memberLabel(m, currentMemberId)}&apos;s account
                 </button>
               ))}
+              {othersAllowed && (
+                <button
+                  type="button"
+                  onClick={() => setPaidByOthers(true)}
+                  className={`min-w-[100px] flex-1 rounded-sm border px-3 py-2 text-sm transition-std ${
+                    paidByOthers
+                      ? "border-ink bg-ink text-paper"
+                      : "border-line text-ink-soft"
+                  }`}
+                >
+                  Others (untracked)
+                </button>
+              )}
             </div>
             <p className="mt-1.5 text-xs text-ink-soft">
               Which card/UPI/account actually paid — separate from who the spend counts against
@@ -349,6 +439,17 @@ export function ExpenseForm({
           </>
         )}
       </div>
+
+      {/* Split with others */}
+      {splitAvailable && (
+        <ExpenseSplitEditor
+          amount={parseFloat(amount) || 0}
+          members={members}
+          currentMemberId={currentMemberId}
+          value={splitState}
+          onChange={setSplitState}
+        />
+      )}
 
       {/* Description */}
       <label className="block text-sm">

@@ -38,7 +38,22 @@ export interface Group {
   id: string;
   name: string;
   created_by: string | null;
+  others_involved: boolean;
   created_at: string;
+}
+
+export type SplitPartyType = "member" | "others";
+
+export interface ExpenseSplit {
+  id: string;
+  expense_id: string;
+  party_type: SplitPartyType;
+  member_id: string | null;
+  share_amount: number;
+}
+
+export interface ExpenseSplitWithMember extends ExpenseSplit {
+  member: HouseholdMember | null;
 }
 
 export interface Expense {
@@ -50,6 +65,7 @@ export interface Expense {
   owner_id: string | null; // household_members.id
   payment_method: PaymentMethod;
   funded_by: string | null; // household_members.id, null = common account
+  paid_by_others: boolean; // mutually exclusive with funded_by having a value
   vendor_id: string | null;
   group_id: string | null;
   description: string | null;
@@ -65,6 +81,7 @@ export interface ExpenseWithRelations extends Expense {
   added_by_profile: Profile | null;
   vendor: Vendor | null;
   group: Group | null;
+  splits: ExpenseSplitWithMember[];
 }
 
 // Minimal Database type so @supabase/ssr's generics are satisfied.
