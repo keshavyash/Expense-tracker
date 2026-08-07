@@ -10,25 +10,22 @@ export default async function EditExpensePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
-
   const supabase = await createClient();
-  const { data: expense } = await supabase
-    .from("expenses")
-    .select("*, vendor:vendors(name)")
-    .eq("id", id)
-    .single();
 
+  const [profile, { data: expense }, categories, vendors, groups, members, currentMember] =
+    await Promise.all([
+      getCurrentProfile(),
+      supabase.from("expenses").select("*, vendor:vendors(name)").eq("id", id).single(),
+      getCategories(),
+      getVendors(),
+      getGroups(),
+      getHouseholdMembers(),
+      ensureHouseholdMember(),
+    ]);
+
+  if (!profile) redirect("/login");
   if (!expense) notFound();
 
-  const [categories, vendors, groups, members, currentMember] = await Promise.all([
-    getCategories(),
-    getVendors(),
-    getGroups(),
-    getHouseholdMembers(),
-    ensureHouseholdMember(),
-  ]);
   const vendorName = (expense as unknown as { vendor: { name: string } | null }).vendor?.name ?? null;
 
   return (

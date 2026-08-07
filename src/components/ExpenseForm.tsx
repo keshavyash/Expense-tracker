@@ -13,6 +13,7 @@ import type {
 } from "@/lib/database.types";
 import { addExpense, deleteExpense, updateExpense, type ExpenseInput } from "@/lib/actions";
 import { VendorCombobox } from "@/components/VendorCombobox";
+import { todayIST } from "@/lib/dates";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "card", label: "Card" },
@@ -21,10 +22,6 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "bank_transfer", label: "Bank transfer" },
   { value: "sodexo", label: "Sodexo" },
 ];
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function memberLabel(m: HouseholdMember, currentMemberId: string) {
   return m.id === currentMemberId ? "You" : m.name;
@@ -56,7 +53,7 @@ export function ExpenseForm({
   const amountRef = useRef<HTMLInputElement>(null);
 
   const [amount, setAmount] = useState(existing ? String(existing.amount) : "");
-  const [date, setDate] = useState(existing?.expense_date ?? todayISO());
+  const [date, setDate] = useState(existing?.expense_date ?? todayIST());
   const [categoryId, setCategoryId] = useState(existing?.category_id ?? categories[0]?.id ?? "");
   const [expenseType, setExpenseType] = useState<"personal" | "common">(
     existing?.expense_type ?? (defaultGroupId ? "common" : "personal")

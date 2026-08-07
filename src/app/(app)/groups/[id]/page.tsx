@@ -17,10 +17,12 @@ export default async function GroupDetailPage({
   if (!currentMember) redirect("/login");
 
   const supabase = await createClient();
-  const { data: group } = await supabase.from("groups").select("*").eq("id", id).single();
+  const [{ data: group }, expenses] = await Promise.all([
+    supabase.from("groups").select("*").eq("id", id).single(),
+    getExpenses({ groupId: id }),
+  ]);
   if (!group) notFound();
 
-  const expenses = await getExpenses({ groupId: id });
   const total = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
 
   return (

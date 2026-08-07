@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { firstOfMonthIST, lastOfMonthIST } from "@/lib/dates";
 import type {
   Category,
   ExpenseWithRelations,
@@ -9,13 +10,24 @@ import type {
   Vendor,
 } from "@/lib/database.types";
 
-export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+// Verifying a session with Supabase's Auth server is a real network call,
+// not a free local check — and middleware already does this once per
+// request. Sharing this via cache() means the handful of functions below
+// that all need "who's logged in" only pay for that round-trip once per
+// request, no matter how many of them run.
+const getAuthUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  return user;
+});
+
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+  const user = await getAuthUser();
   if (!user) return null;
 
+  const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
     .select("*")
@@ -41,11 +53,10 @@ export const getHouseholdMembers = cache(async (): Promise<HouseholdMember[]> =>
 // has an account: you add a placeholder member for her, and if she
 // signs in later, her login gets linked to that same record.
 export const ensureHouseholdMember = cache(async (): Promise<HouseholdMember | null> => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return null;
+
+  const supabase = await createClient();
 
   const { data: existing } = await supabase
     .from("household_members")
@@ -173,10 +184,6 @@ export async function getExpenses(
   return (data as unknown as ExpenseWithRelations[]) ?? [];
 }
 
-export function monthRange(date = new Date()): { from: string; to: string } {
-  const y = date.getFullYear();
-  const m = date.getMonth();
-  const from = new Date(y, m, 1).toISOString().slice(0, 10);
-  const to = new Date(y, m + 1, 0).toISOString().slice(0, 10);
-  return { from, to };
+export function monthRange(): { from: string; to: string } {
+  return { from: firstOfMonthIST(0), to: lastOfMonthIST(0) };
 }

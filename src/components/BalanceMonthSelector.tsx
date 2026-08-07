@@ -1,14 +1,22 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { currentYearMonthIST } from "@/lib/dates";
 
 function monthOptions(count = 12) {
   const options: { value: string; label: string }[] = [];
-  const now = new Date();
+  const { year: currentYear, month: currentMonth } = currentYearMonthIST();
+
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    // currentMonth is 1-indexed; walk back i months using UTC arithmetic
+    // so this matches server-side computation exactly (see lib/dates.ts).
+    const d = new Date(Date.UTC(currentYear, currentMonth - 1 - i, 1));
+    const value = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-IN", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
     options.push({ value, label });
   }
   return options;

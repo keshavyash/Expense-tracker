@@ -2,31 +2,24 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+import { firstOfMonthIST, firstOfYearIST, lastOfMonthIST, todayIST } from "@/lib/dates";
 
 const PRESET_KEYS = ["this-month", "last-month", "last-3", "last-6", "this-year"] as const;
 
 function presetRange(preset: string): { from: string; to: string } {
-  const now = new Date();
-  const to = isoDate(now);
+  const to = todayIST();
   switch (preset) {
-    case "last-month": {
-      const from = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
-      const monthEnd = isoDate(new Date(now.getFullYear(), now.getMonth(), 0));
-      return { from, to: monthEnd };
-    }
+    case "last-month":
+      return { from: firstOfMonthIST(1), to: lastOfMonthIST(1) };
     case "last-3":
-      return { from: isoDate(new Date(now.getFullYear(), now.getMonth() - 2, 1)), to };
+      return { from: firstOfMonthIST(2), to };
     case "last-6":
-      return { from: isoDate(new Date(now.getFullYear(), now.getMonth() - 5, 1)), to };
+      return { from: firstOfMonthIST(5), to };
     case "this-year":
-      return { from: isoDate(new Date(now.getFullYear(), 0, 1)), to };
+      return { from: firstOfYearIST(), to };
     case "this-month":
     default:
-      return { from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)), to };
+      return { from: firstOfMonthIST(0), to };
   }
 }
 

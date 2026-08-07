@@ -7,42 +7,40 @@ import { ReportTypeFilter } from "@/components/ReportTypeFilter";
 import { RankedList } from "@/components/RankedList";
 import { ExportCsvButton } from "@/components/ExportCsvButton";
 import { formatDate, PAYMENT_METHOD_LABELS } from "@/lib/format";
+import { currentYearMonthIST, firstOfMonthIST, monthBounds, todayIST } from "@/lib/dates";
 import { redirect } from "next/navigation";
 
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
 function defaultReportRange(): { from: string; to: string } {
-  const now = new Date();
-  return {
-    from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
-    to: isoDate(now),
-  };
+  return { from: firstOfMonthIST(0), to: todayIST() };
 }
 
 // Calendar-month buckets spanning [from, to], capped to the most recent
 // 24 so a very wide custom range (or "All time") doesn't blow up the
 // stacked trend chart into an unreadable strip.
 function monthsBetween(fromISO: string, toISO: string, maxMonths = 24) {
-  const start = new Date(fromISO);
-  const end = new Date(toISO);
+  const [startY, startM] = fromISO.split("-").map(Number);
+  const [endY, endM] = toISO.split("-").map(Number);
   const months: { from: string; to: string; label: string }[] = [];
-  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-  const thisYear = new Date().getFullYear();
+  let y = startY;
+  let m = startM;
+  const { year: thisYear } = currentYearMonthIST();
 
-  while (cursor <= end) {
-    const y = cursor.getFullYear();
-    const m = cursor.getMonth();
+  while (y < endY || (y === endY && m <= endM)) {
+    const bounds = monthBounds(y, m);
     months.push({
-      from: isoDate(new Date(y, m, 1)),
-      to: isoDate(new Date(y, m + 1, 0)),
-      label: cursor.toLocaleDateString("en-IN", {
+      from: bounds.from,
+      to: bounds.to,
+      label: new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-IN", {
         month: "short",
         year: y !== thisYear ? "2-digit" : undefined,
+        timeZone: "UTC",
       }),
     });
-    cursor.setMonth(cursor.getMonth() + 1);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
   }
 
   return months.length > maxMonths ? months.slice(-maxMonths) : months;
@@ -50,20 +48,19 @@ function monthsBetween(fromISO: string, toISO: string, maxMonths = 24) {
 
 // Parses a "YYYY-MM" selector value into a from/to date range for that month.
 function monthParamToRange(param: string | undefined): { from: string; to: string; value: string } {
-  const now = new Date();
-  let year = now.getFullYear();
-  let monthIndex = now.getMonth();
+  const current = currentYearMonthIST();
+  let year = current.year;
+  let month = current.month;
 
   if (param && /^\d{4}-\d{2}$/.test(param)) {
     const [y, m] = param.split("-").map(Number);
     year = y;
-    monthIndex = m - 1;
+    month = m;
   }
 
-  const from = isoDate(new Date(year, monthIndex, 1));
-  const to = isoDate(new Date(year, monthIndex + 1, 0));
-  const value = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
-  return { from, to, value };
+  const bounds = monthBounds(year, month);
+  const value = `${year}-${String(month).padStart(2, "0")}`;
+  return { from: bounds.from, to: bounds.to, value };
 }
 
 export default async function ReportsPage({
