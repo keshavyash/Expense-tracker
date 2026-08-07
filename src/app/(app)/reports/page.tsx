@@ -73,12 +73,25 @@ export default async function ReportsPage({
   const defaultRange = defaultReportRange();
   const reportFrom = sp.from || defaultRange.from;
   const reportTo = sp.to || defaultRange.to;
-  const reportType = sp.type === "personal" ? "personal" : sp.type === "all" ? undefined : "common";
   const months = monthsBetween(reportFrom, reportTo);
+
+  const typeParam = sp.type ?? "common";
+  let reportExpenseType: "personal" | "common" | undefined;
+  let reportOwnerId: string | undefined;
+  if (typeParam === "personal") {
+    reportExpenseType = "personal";
+  } else if (typeParam === "all") {
+    reportExpenseType = undefined;
+  } else if (typeParam.startsWith("personal:")) {
+    reportExpenseType = "personal";
+    reportOwnerId = typeParam.slice("personal:".length);
+  } else {
+    reportExpenseType = "common";
+  }
 
   const [currentMember, rangeExpenses, balanceExpenses, members] = await Promise.all([
     ensureHouseholdMember(),
-    getExpenses({ from: reportFrom, to: reportTo, expenseType: reportType }),
+    getExpenses({ from: reportFrom, to: reportTo, expenseType: reportExpenseType, ownerId: reportOwnerId }),
     getExpenses({ from: balanceRange.from, to: balanceRange.to }),
     getHouseholdMembers(),
   ]);
@@ -174,7 +187,7 @@ export default async function ReportsPage({
           <DateRangeSelector from={reportFrom} to={reportTo} />
         </Suspense>
         <Suspense>
-          <ReportTypeFilter value={sp.type ?? "common"} />
+          <ReportTypeFilter value={typeParam} members={members} />
         </Suspense>
       </div>
 
