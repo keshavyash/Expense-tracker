@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ensureHouseholdMember, getExpenses, monthRange } from "@/lib/data";
+import { ensureHouseholdMember, getExpenses, getHouseholdMembers, monthRange } from "@/lib/data";
 import { BucketCard } from "@/components/BucketCard";
 import { ExpenseRow } from "@/components/ExpenseRow";
 import { formatMoney } from "@/lib/format";
@@ -10,10 +10,13 @@ export default async function DashboardPage() {
   if (!currentMember) redirect("/login");
 
   const { from, to } = monthRange();
-  const [monthExpenses, recent] = await Promise.all([
+  const [monthExpenses, recent, members] = await Promise.all([
     getExpenses({ from, to }),
     getExpenses({ limit: 8 }),
+    getHouseholdMembers(),
   ]);
+
+  const otherMember = members.find((m) => m.id !== currentMember.id);
 
   const common = monthExpenses.filter((e) => e.expense_type === "common");
   const you = monthExpenses.filter(
@@ -22,7 +25,7 @@ export default async function DashboardPage() {
   const other = monthExpenses.filter(
     (e) => e.expense_type === "personal" && e.owner_id !== currentMember.id
   );
-  const otherName = other[0]?.owner?.name ?? "Spouse";
+  const otherName = otherMember?.name ?? other[0]?.owner?.name ?? "Spouse";
 
   const sum = (list: typeof monthExpenses) =>
     list.reduce((acc, e) => acc + Number(e.amount), 0);
@@ -64,7 +67,7 @@ export default async function DashboardPage() {
           total={sum(other)}
           count={other.length}
           variant="spouse"
-          href="/expenses?type=personal"
+          href={otherMember ? `/expenses?type=personal&owner=${otherMember.id}` : "/expenses?type=personal"}
         />
       </div>
 
